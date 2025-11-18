@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Controle Financeiro</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+  <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet" />
+  <link href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.14.1/dist/sweetalert2.min.css" rel="stylesheet" />
+  <style>
+    :root{ --primary:#0033cc; --primary-dark:#001a66; --success:#008000; --danger:#c00000; --info:#0000c0; }
+    body{font-family:Segoe UI, Tahoma, sans-serif; background:linear-gradient(135deg,#667eea,#764ba2); min-height:100vh; padding:24px}
+    .container-xl{max-width:1400px}
+    .header-card{background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:#fff; padding:24px; border-radius:16px; box-shadow:0 12px 30px rgba(0,0,0,.25)}
+    .stats .card{border:none; border-left:6px solid transparent}
+    .stats .entradas{border-left-color:var(--success)}
+    .stats .saidas{border-left-color:var(--danger)}
+    .stats .saldo{border-left-color:var(--info)}
+    .stats .value{font-size:1.8rem; font-weight:700}
+    .content-card{background:#fff; border-radius:14px; padding:24px; box-shadow:0 6px 20px rgba(0,0,0,.12)}
+    .categoria-badge{display:inline-block; padding:3px 10px; border-radius:12px; background:#eef1f4; font-weight:600; font-size:.85rem}
+    #tabelaLancamentos thead{background:var(--primary); color:#fff}
+    .cell-entrada{background:#c6efce !important; font-weight:700}
+    .cell-saida{background:#ffc7ce !important; font-weight:700}
+    .saldo-neg{color:var(--danger) !important; font-weight:700}
+    .saldo-pos{color:var(--success) !important; font-weight:700}
+    .chart-wrap{position:relative; height:320px}
+  </style>
+</head>
+<body>
+  <div class="container-xl">
+    <div class="header-card mb-4">
+      <div class="row g-3 align-items-end">
+        <div class="col-lg-6">
+          <h1 class="h3 mb-1"><i class="bi bi-wallet2"></i> Controle Financeiro</h1>
+          <p class="mb-0">Gestão de receitas e despesas por mês/ano com planilha por mês</p>
+        </div>
+        <div class="col-lg-6">
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label small">Mês</label>
+              <select id="monthSelect" class="form-select form-select-lg">
+                <option value="01">Janeiro</option><option value="02">Fevereiro</option><option value="03">Março</option>
+                <option value="04">Abril</option><option value="05">Maio</option><option value="06">Junho</option>
+                <option value="07">Julho</option><option value="08">Agosto</option><option value="09">Setembro</option>
+                <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label small">Ano</label>
+              <select id="yearSelect" class="form-select form-select-lg"></select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3 stats mb-4">
+      <div class="col-lg-4 col-md-6">
+        <div class="card entradas p-3">
+          <div class="text-success"><i class="bi bi-arrow-down-left-circle-fill"></i> Entradas</div>
+          <div id="totalEntradas" class="value text-success">R$ 0,00</div>
+        </div>
+      </div>
+      <div class="col-lg-4 col-md-6">
+        <div class="card saidas p-3">
+          <div class="text-danger"><i class="bi bi-arrow-up-right-circle-fill"></i> Saídas</div>
+          <div id="totalSaidas" class="value text-danger">R$ 0,00</div>
+        </div>
+      </div>
+      <div class="col-lg-4 col-md-12">
+        <div class="card saldo p-3">
+          <div class="text-primary"><i class="bi bi-piggy-bank-fill"></i> Saldo</div>
+          <div id="saldoFinal" class="value">R$ 0,00</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="content-card mb-4">
+      <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+        <h2 class="h5 mb-0"><i class="bi bi-plus-circle"></i> Novo lançamento</h2>
+        <div class="d-flex flex-wrap gap-2">
+          <button class="btn btn-outline-warning" id="btnFolder"><i class="bi bi-folder2-open"></i> salvar</button>
+          <span id="folderStatus" class="align-self-center small text-muted"></span>
+          <span id="scopeStatus" class="align-self-center small badge rounded-pill text-bg-info">Mês</span>
+          <button class="btn btn-secondary" id="btnAtualizar"><i class="bi bi-arrow-clockwise"></i> Atualizar</button>
+          <button class="btn btn-outline-primary" id="btnExportar"><i class="bi bi-download"></i> Exportar XLSX</button>
+          <label class="btn btn-outline-dark mb-0" for="inputImportar"><i class="bi bi-upload"></i> Importar XLSX</label>
+          <input type="file" id="inputImportar" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden />
+        </div>
+      </div>
+      <form id="formLancamento" class="row g-3">
+        <div class="col-md-2">
+          <label class="form-label">Data *</label>
+          <input type="date" id="data" class="form-control" required />
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Descrição *</label>
+          <input type="text" id="descricao" class="form-control" placeholder="Ex: Salário, Aluguel..." required />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Categoria *</label>
+          <select id="categoria" class="form-select" required>
+            <option value="">Selecione...</option>
+            <option>Salário</option>
+            <option>Receita Extra</option>
+            <option>Moradia</option>
+            <option>Alimentação</option>
+            <option>Transporte</option>
+            <option>Saúde</option>
+            <option>Lazer</option>
+            <option>Educação</option>
+            <option>Outros</option>
+          </select>
+        </div>
+        <div class="col-md-1">
+          <label class="form-label">Entrada</label>
+          <input type="number" id="entrada" class="form-control" min="0" step="0.01" placeholder="0,00" />
+        </div>
+        <div class="col-md-1">
+          <label class="form-label">Saída</label>
+          <input type="number" id="saida" class="form-control" min="0" step="0.01" placeholder="0,00" />
+        </div>
+        <div class="col-md-1 d-flex align-items-end">
+          <button class="btn btn-primary w-100" type="submit"><i class="bi bi-check2-circle"></i> Adicionar</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="content-card">
+      <ul class="nav nav-tabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabLanc" type="button"><i class="bi bi-table"></i> Lançamentos</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabResumo" type="button"><i class="bi bi-list-ul"></i> Resumo por categoria</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabCats" type="button"><i class="bi bi-tags"></i> Categorias</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabPivot" type="button"><i class="bi bi-grid-3x3"></i> Pivot</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabGraficos" type="button"><i class="bi bi-graph-up"></i> Gráficos</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabAno" type="button"><i class="bi bi-calendar2-range"></i> Ano / Geral</button>
+        </li>
+      </ul>
+
+      <div class="tab-content pt-3">
+        <div class="tab-pane fade show active" id="tabLanc">
+          <div class="table-responsive">
+            <table id="tabelaLancamentos" class="table table-striped table-hover" style="width:100%">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Descrição</th>
+                  <th>Categoria</th>
+                  <th>Entrada (+)</th>
+                  <th>Saída (-)</th>
+                  <th>Saldo</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyLanc"></tbody>
+              <tfoot>
+                <tr>
+                  <th colspan="3" class="text-end">Totais:</th>
+                  <th class="text-end text-success" id="ftLancEntrada">R$ 0,00</th>
+                  <th class="text-end text-danger" id="ftLancSaida">R$ 0,00</th>
+                  <th class="text-end fw-bold" id="ftLancSaldo">R$ 0,00</th>
+                  <th></th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <div class="tab-pane fade" id="tabResumo">
+          <div class="table-responsive">
+            <table class="table table-bordered table-striped" id="tabelaResumo">
+              <thead class="table-dark">
+                <tr>
+                  <th>Categoria</th>
+                  <th>Total Entradas</th>
+                  <th>Total Saídas</th>
+                  <th>Diferença</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyResumo"></tbody>
+              <tfoot>
+                <tr>
+                  <th class="text-end">Totais:</th>
+                  <th class="text-end text-success" id="ftResumoEntrada">R$ 0,00</th>
+                  <th class="text-end text-danger" id="ftResumoSaida">R$ 0,00</th>
+                  <th class="text-end fw-bold" id="ftResumoDif">R$ 0,00</th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <div class="tab-pane fade" id="tabCats">
+          <div class="table-responsive">
+            <table class="table table-striped table-hover">
+              <thead class="table-primary">
+                <tr><th style="width:70px">#</th><th>Categoria</th></tr>
+              </thead>
+              <tbody id="tbodyCats"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="tab-pane fade" id="tabPivot">
+          <div class="table-responsive">
+            <table class="table table-bordered table-hover" id="tabelaPivot">
+              <thead class="table-info">
+                <tr>
+                  <th>Categoria</th>
+                  <th>Total Entradas</th>
+                  <th>Total Saídas</th>
+                  <th>Diferença</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyPivot"></tbody>
+              <tfoot>
+                <tr>
+                  <th class="text-end">Totais:</th>
+                  <th class="text-end text-success" id="ftPivotEntrada">R$ 0,00</th>
+                  <th class="text-end text-danger" id="ftPivotSaida">R$ 0,00</th>
+                  <th class="text-end fw-bold" id="ftPivotDif">R$ 0,00</th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <div class="tab-pane fade" id="tabGraficos">
+          <div class="row g-3">
+            <div class="col-lg-6">
+              <div class="chart-wrap"><canvas id="chartSaldo"></canvas></div>
+            </div>
+            <div class="col-lg-6">
+              <div class="chart-wrap"><canvas id="chartCategorias"></canvas></div>
+            </div>
+            <div class="col-12">
+              <div class="chart-wrap"><canvas id="chartComparativo"></canvas></div>
+            </div>
+          </div>
+        </div>
+        <div class="tab-pane fade" id="tabAno">
+          <div class="d-flex flex-wrap gap-2 mb-3">
+            <button class="btn btn-outline-primary" id="btnCarregarAno"><i class="bi bi-search"></i> Ver Ano</button>
+            <button class="btn btn-outline-success" id="btnExportarAno"><i class="bi bi-download"></i> Exportar Ano XLSX</button>
+            <button class="btn btn-outline-secondary" id="btnCarregarTodos"><i class="bi bi-collection"></i> Ver Todos Anos</button>
+            <button class="btn btn-outline-warning" id="btnExportarTodos"><i class="bi bi-cloud-download"></i> Exportar Todos XLSX</button>
+            <button class="btn btn-outline-dark" id="btnVoltarMes"><i class="bi bi-arrow-left-circle"></i> Voltar para Mês</button>
+            <span id="anoInfo" class="small text-muted"></span>
+          </div>
+          <div class="row g-3">
+            <div class="col-lg-6">
+              <div class="table-responsive">
+                <table class="table table-bordered table-sm" id="tblAnoCat">
+                  <thead class="table-dark">
+                    <tr><th>Categoria</th><th>Entradas</th><th>Saídas</th><th>Diferença</th></tr>
+                  </thead>
+                  <tbody></tbody>
+                  <tfoot></tfoot>
+                </table>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <div class="chart-wrap"><canvas id="chartAnoMeses"></canvas></div>
+            </div>
+            <div class="col-12">
+              <div class="table-responsive">
+                <table class="table table-striped table-sm" id="tblTodosAnos">
+                  <thead class="table-info"><tr><th>Ano</th><th>Entradas</th><th>Saídas</th><th>Diferença</th></tr></thead>
+                  <tbody></tbody>
+                  <tfoot></tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+  <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+  <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.14.1/dist/sweetalert2.all.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script>
+    let currentMonth = new Date().getMonth() + 1;
+    let currentYear = new Date().getFullYear();
+    let transactions = [];
+  let dtLanc = null, chSaldo=null, chCats=null, chComp=null, chAnoMeses=null;
+    // Escopo de visualização
+    let scopeMode = 'month'; // 'month' | 'year' | 'all'
+    let scopeTrans = [];
+    const getTrans = () => scopeMode==='month' ? transactions : scopeTrans;
+    function setScope(mode, arr){ scopeMode = mode; scopeTrans = Array.isArray(arr) ? arr : []; updateScopeUI(); }
+    function updateScopeUI(){
+      const $badge=$('#scopeStatus');
+      if(scopeMode==='month'){ $badge.text('Mês').removeClass('text-bg-secondary').addClass('text-bg-info'); $('#btnAtualizar').prop('disabled', false); }
+      if(scopeMode==='year'){ $badge.text('Ano').removeClass('text-bg-info').addClass('text-bg-secondary'); $('#btnAtualizar').prop('disabled', true); }
+      if(scopeMode==='all'){ $badge.text('Todos').removeClass('text-bg-info').addClass('text-bg-secondary'); $('#btnAtualizar').prop('disabled', true); }
+    }
+    const CATEGORIAS = ["Salário","Receita Extra","Moradia","Alimentação","Transporte","Saúde","Lazer","Educação","Outros"];
+    const fmtMoney = v => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v||0);
+    const fmtDate = s => {const d=new Date(s+'T00:00:00'); return d.toLocaleDateString('pt-BR');}
+  const keyFile = () => `${String(currentMonth).padStart(2,'0')}-${currentYear}.xlsx`;
+  let salvarDirHandle = null; // File System Access API directory handle
+
+  $(function(){ initSelectors(); setToday(); bindEvents(); initFs().then(()=>loadTransactions()).then(()=>{ initCharts(); renderAll(); }); });
+    function initSelectors(){ $('#monthSelect').val(String(currentMonth).padStart(2,'0')); const $y=$('#yearSelect'); for(let y=2020;y<=2035;y++) $y.append(`<option ${y===currentYear?'selected':''}>${y}</option>`); }
+    function setToday(){ $('#data').val(new Date().toISOString().split('T')[0]); }
+  function bindEvents(){ $('#formLancamento').on('submit', onAdd); $('#monthSelect,#yearSelect').on('change', ()=>{currentMonth=parseInt($('#monthSelect').val()); currentYear=parseInt($('#yearSelect').val()); setScope('month'); loadTransactions().then(()=>{ renderAll(); });}); $('#btnAtualizar').on('click', ()=>{ saveTransactions().then(()=>loadTransactions()).then(()=>{ renderAll(); Swal.fire({icon:'success',title:'Salvo/Atualizado!',timer:1000,showConfirmButton:false}); }); }); $('#entrada').on('input', ()=>{ if($('#entrada').val()) $('#saida').val(''); }); $('#saida').on('input', ()=>{ if($('#saida').val()) $('#entrada').val(''); }); $('#btnExportar').on('click', exportXLSX); $('#inputImportar').on('change', importXLSX); $('#btnFolder').on('click', selectSalvarFolder); $('#btnCarregarAno').on('click', ()=>{ carregarAno(currentYear); }); $('#btnExportarAno').on('click', ()=>{ exportarAnoXLSX(currentYear); }); $('#btnCarregarTodos').on('click', carregarTodosAnos); $('#btnExportarTodos').on('click', exportarTodosAnosXLSX); $('#btnVoltarMes').on('click', ()=>{ setScope('month'); loadTransactions().then(()=>{ renderAll(); Swal.fire({icon:'info',title:'Voltou para Mês',timer:800,showConfirmButton:false}); }); }); }
+
+    // ===== File System Access API helpers (Chrome/Edge/Opera) =====
+    async function idbOpen(){
+      return await new Promise((resolve, reject)=>{
+        const req = indexedDB.open('finance-fs', 1);
+        req.onupgradeneeded = () => { req.result.createObjectStore('handles'); };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+    async function idbGet(key){ const db=await idbOpen(); return await new Promise((res,rej)=>{ const tx=db.transaction('handles','readonly'); const st=tx.objectStore('handles'); const g=st.get(key); g.onsuccess=()=>res(g.result||null); g.onerror=()=>rej(g.error); }); }
+    async function idbSet(key,val){ const db=await idbOpen(); return await new Promise((res,rej)=>{ const tx=db.transaction('handles','readwrite'); const st=tx.objectStore('handles'); const p=st.put(val,key); p.onsuccess=()=>res(true); p.onerror=()=>rej(p.error); }); }
+    async function ensurePerm(handle){ if(!handle) return false; const q = await handle.queryPermission({mode:'readwrite'}); if(q==='granted') return true; const r = await handle.requestPermission({mode:'readwrite'}); return r==='granted'; }
+    async function initFs(){
+      try{
+        if(!('showDirectoryPicker' in window)){ updateFolderStatus('Sem suporte ao acesso ao sistema de arquivos'); return; }
+        salvarDirHandle = await idbGet('salvarDir');
+        if(salvarDirHandle){
+          const ok = await ensurePerm(salvarDirHandle);
+          if(!ok){ updateFolderStatus('Permissão pendente'); }
+          else { updateFolderStatus('Pasta pronta'); }
+        } else { updateFolderStatus('Selecione a pasta salvar'); }
+      }catch{ updateFolderStatus('Selecione a pasta salvar'); }
+    }
+    function updateFolderStatus(msg){ $('#folderStatus').text(msg||''); }
+    async function selectSalvarFolder(){
+      try{
+        const dir = await window.showDirectoryPicker({ startIn: 'documents' });
+        // opcional: validar que a pasta selecionada é "salvar"
+        salvarDirHandle = dir; await idbSet('salvarDir', dir); updateFolderStatus('Pasta pronta');
+        await loadTransactions(); renderAll();
+      }catch(e){ console.warn('Seleção de pasta cancelada/erro', e); }
+    }
+    // ===== XLSX helpers =====
+    function buildSheetData(){
+      // Header row + data rows
+      const header = ['id','data','descricao','categoria','entrada','saida'];
+      const rows = transactions.map(t=>[
+        t.id,
+        t.data,
+        t.descricao,
+        t.categoria,
+        Number(t.entrada||0),
+        Number(t.saida||0)
+      ]);
+      return [header, ...rows];
+    }
+    function sheetToTransactions(sheet){
+      const rows = XLSX.utils.sheet_to_json(sheet, { header:1, defval:'' });
+      if(!rows || rows.length===0) return [];
+      // Expect header in first row
+      const header = rows[0].map(h=>String(h).toLowerCase());
+      const idx = key=> header.indexOf(key);
+      const iId=idx('id'), iData=idx('data'), iDesc=idx('descricao'), iCat=idx('categoria'), iE=idx('entrada'), iS=idx('saida');
+      const out=[];
+      for(let r=1;r<rows.length;r++){
+        const row = rows[r];
+        if(!row || (row.every(v=>String(v).trim()===''))) continue;
+        const id = Number(row[iId]||Date.now()+r);
+        const data = String(row[iData]||'').slice(0,10);
+        const descricao = String(row[iDesc]||'');
+        const categoria = String(row[iCat]||'');
+        const entrada = Number(row[iE]||0);
+        const saida = Number(row[iS]||0);
+        out.push({id,data: data || new Date().toISOString().split('T')[0], descricao, categoria, entrada, saida, saldo:0});
+      }
+      return out;
+    }
+    async function fileReadXlsx(fileHandle){
+      const f = await fileHandle.getFile();
+      if(!f || f.size===0) return [];
+      const buf = await f.arrayBuffer();
+      try{
+        const wb = XLSX.read(buf, {type:'array'});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        return sheetToTransactions(ws);
+      }catch(e){ console.warn('Falha ao ler XLSX', e); return []; }
+    }
+    async function fileWriteXlsx(fileHandle){
+      const aoa = buildSheetData();
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, `${String(currentMonth).padStart(2,'0')}-${currentYear}`);
+      const buf = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+      const w = await fileHandle.createWritable();
+      await w.write(buf);
+      await w.close();
+    }
+    async function saveTransactions(){
+      if(salvarDirHandle && await ensurePerm(salvarDirHandle)){
+        const fh = await salvarDirHandle.getFileHandle(keyFile(), {create:true});
+        await fileWriteXlsx(fh);
+      } else {
+        // fallback localStorage (JSON interno) enquanto a pasta não for escolhida
+        localStorage.setItem(`${String(currentMonth).padStart(2,'0')}-${currentYear}.json`, JSON.stringify({mes:currentMonth,ano:currentYear,transacoes:transactions}, null, 2));
+      }
+    }
+    async function loadTransactions(){
+      if(salvarDirHandle && await ensurePerm(salvarDirHandle)){
+        try{
+          const fh = await salvarDirHandle.getFileHandle(keyFile(), {create:true});
+          const arr = await fileReadXlsx(fh);
+          transactions = Array.isArray(arr) ? arr : [];
+          if(arr.length===0){
+            // arquivo recém-criado, grava cabeçalho vazio
+            await fileWriteXlsx(fh);
+          }
+          return;
+        }catch(e){ console.warn('Falha ao ler arquivo do mês', e); transactions = []; return; }
+      }
+      // fallback local
+      const raw=localStorage.getItem(`${String(currentMonth).padStart(2,'0')}-${currentYear}.json`);
+      if(raw){ try{ transactions = JSON.parse(raw).transacoes||[]; }catch{ transactions=[]; } } else { transactions=[]; }
+    }
+  function onAdd(e){ e.preventDefault(); if(scopeMode!=='month'){ return Swal.fire({icon:'info',title:'Adição apenas na visão Mensal'}); } const entrada=parseFloat($('#entrada').val()||'0'); const saida=parseFloat($('#saida').val()||'0'); if(entrada<=0 && saida<=0){ return Swal.fire({icon:'warning',title:'Informe Entrada ou Saída'}); } const t={id:Date.now(),data:$('#data').val(),descricao:$('#descricao').val(),categoria:$('#categoria').val(),entrada,saida,saldo:0}; transactions.push(t); saveTransactions().then(()=>loadTransactions()).then(()=>{ $('#formLancamento')[0].reset(); setToday(); renderAll(); Swal.fire({icon:'success',title:'Lançamento adicionado!',timer:900,showConfirmButton:false}); }); }
+  function onDelete(id){ if(scopeMode!=='month'){ return Swal.fire({icon:'info',title:'Exclusão apenas na visão Mensal'}); } Swal.fire({title:'Excluir lançamento?',icon:'warning',showCancelButton:true,confirmButtonText:'Excluir',confirmButtonColor:'#c00000'}).then(r=>{ if(r.isConfirmed){ transactions = transactions.filter(x=>x.id!==id); saveTransactions().then(()=>loadTransactions()).then(()=>renderAll()); } }); }
+  function renderAll(){ renderLancamentos(); renderResumo(); renderCategorias(); renderPivot(); updateSummary(); updateCharts(); }
+    function renderLancamentos(){
+      const arr=[...getTrans()].sort((a,b)=> new Date(a.data)-new Date(b.data));
+      let saldo=0; arr.forEach(t=>{ saldo += (t.entrada - t.saida); t.saldo = saldo; });
+      if(dtLanc){ dtLanc.destroy(); }
+      const $tb=$('#tbodyLanc').empty();
+      arr.forEach(t=>{ const sClass=t.saldo<0?'saldo-neg':'saldo-pos'; const actions = scopeMode==='month' ? `<button class="btn btn-sm btn-danger" onclick="onDelete(${t.id})"><i class="bi bi-trash"></i></button>` : `<span class='text-muted'>-</span>`; $tb.append(`<tr><td>${fmtDate(t.data)}</td><td><strong>${t.descricao}</strong></td><td><span class="categoria-badge">${t.categoria}</span></td><td class="text-end ${t.entrada>0?'cell-entrada':''}">${t.entrada>0?fmtMoney(t.entrada):'-'}</td><td class="text-end ${t.saida>0?'cell-saida':''}">${t.saida>0?fmtMoney(t.saida):'-'}</td><td class="text-end ${sClass}">${fmtMoney(t.saldo)}</td><td class="text-center">${actions}</td></tr>`); });
+      // Totais
+      const totE = arr.reduce((a,t)=>a+t.entrada,0);
+      const totS = arr.reduce((a,t)=>a+t.saida,0);
+      const totSaldo = arr.length?arr[arr.length-1].saldo:0;
+      $('#tabelaLancamentos tfoot').html(`<tr>
+        <th colspan="3" class="text-end">Totais:</th>
+        <th class="text-end text-success">${fmtMoney(totE)}</th>
+        <th class="text-end text-danger">${fmtMoney(totS)}</th>
+        <th class="text-end fw-bold">${fmtMoney(totSaldo)}</th>
+        <th></th>
+      </tr>`);
+      dtLanc=$('#tabelaLancamentos').DataTable({ language:{url:'//cdn.datatables.net/plug-ins/1.13.7/i18n/pt-BR.json'}, responsive:true, order:[[0,'asc']], pageLength:15, columnDefs:[{targets:6, orderable:false}] });
+    }
+    function renderResumo(){
+      const byCat=CATEGORIAS.reduce((acc,c)=>{acc[c]={e:0,s:0};return acc;},{});
+      getTrans().forEach(t=>{ if(byCat[t.categoria]){ byCat[t.categoria].e+=t.entrada; byCat[t.categoria].s+=t.saida; }});
+      const $b=$('#tbodyResumo').empty();
+      let totE=0, totS=0;
+      Object.keys(byCat).forEach(c=>{ const e=byCat[c].e, s=byCat[c].s, d=e-s; totE+=e; totS+=s; const cls=d>=0?'text-success':'text-danger'; $b.append(`<tr><td><strong>${c}</strong></td><td class="text-end text-success">${fmtMoney(e)}</td><td class="text-end text-danger">${fmtMoney(s)}</td><td class="text-end ${cls} fw-bold">${fmtMoney(e-s)}</td></tr>`); });
+      const dif = totE - totS;
+      $('#tabelaResumo tfoot').html(`<tr>
+        <th class="text-end">Totais:</th>
+        <th class="text-end text-success">${fmtMoney(totE)}</th>
+        <th class="text-end text-danger">${fmtMoney(totS)}</th>
+        <th class="text-end fw-bold">${fmtMoney(dif)}</th>
+      </tr>`);
+    }
+  function renderCategorias(){ const $b=$('#tbodyCats').empty(); CATEGORIAS.forEach((c,i)=>{ $b.append(`<tr><td class="text-center">${i+1}</td><td><strong>${c}</strong></td></tr>`); }); }
+  function renderPivot(){
+    const pivot=CATEGORIAS.reduce((acc,c)=>{acc[c]={e:0,s:0};return acc;},{});
+    getTrans().forEach(t=>{ if(pivot[t.categoria]){ pivot[t.categoria].e+=t.entrada; pivot[t.categoria].s+=t.saida; } });
+    const $b=$('#tbodyPivot').empty();
+    let totE=0, totS=0;
+    Object.keys(pivot).forEach(c=>{ const e=pivot[c].e, s=pivot[c].s, d=e-s; totE+=e; totS+=s; const cls=d>=0?'text-success':'text-danger'; $b.append(`<tr><td><strong>${c}</strong></td><td class="text-end text-success">${fmtMoney(e)}</td><td class="text-end text-danger">${fmtMoney(s)}</td><td class="text-end ${cls} fw-bold">${fmtMoney(d)}</td></tr>`); });
+    $('#tabelaPivot tfoot').html(`<tr>
+      <th class="text-end">Totais:</th>
+      <th class="text-end text-success">${fmtMoney(totE)}</th>
+      <th class="text-end text-danger">${fmtMoney(totS)}</th>
+      <th class="text-end fw-bold">${fmtMoney(totE-totS)}</th>
+    </tr>`);
+  }
+  function updateSummary(){ const list=getTrans(); const e=list.reduce((a,t)=>a+t.entrada,0); const s=list.reduce((a,t)=>a+t.saida,0); const d=e-s; $('#totalEntradas').text(fmtMoney(e)); $('#totalSaidas').text(fmtMoney(s)); $('#saldoFinal').text(fmtMoney(d)).toggleClass('saldo-neg', d<0).toggleClass('saldo-pos', d>=0); }
+    function initCharts(){ chSaldo=new Chart(document.getElementById('chartSaldo').getContext('2d'),{ type:'line', data:{labels:[],datasets:[{label:'Saldo acumulado',data:[],borderColor:'#0dcaf0',backgroundColor:'rgba(13,202,240,.12)',fill:true,tension:.35}]}, options:{maintainAspectRatio:false,responsive:true} }); chCats=new Chart(document.getElementById('chartCategorias').getContext('2d'),{ type:'doughnut', data:{labels:[],datasets:[{data:[],backgroundColor:['#ff6384','#36a2eb','#ffce56','#4bc0c0','#9966ff','#ff9f40','#c9cbcf','#00c49f','#845ec2']} ]}, options:{maintainAspectRatio:false,responsive:true} }); chComp=new Chart(document.getElementById('chartComparativo').getContext('2d'),{ type:'bar', data:{labels:[],datasets:[{label:'Entradas',data:[],backgroundColor:'#00a86b'},{label:'Saídas',data:[],backgroundColor:'#dc3545'}]}, options:{maintainAspectRatio:false,responsive:true} }); }
+    function initCharts(){
+      chSaldo=new Chart(document.getElementById('chartSaldo').getContext('2d'),{ type:'line', data:{labels:[],datasets:[{label:'Saldo acumulado',data:[],borderColor:'#0dcaf0',backgroundColor:'rgba(13,202,240,.12)',fill:true,tension:.35}]}, options:{maintainAspectRatio:false,responsive:true} });
+      chCats=new Chart(document.getElementById('chartCategorias').getContext('2d'),{ type:'doughnut', data:{labels:[],datasets:[{data:[],backgroundColor:['#ff6384','#36a2eb','#ffce56','#4bc0c0','#9966ff','#ff9f40','#c9cbcf','#00c49f','#845ec2']} ]}, options:{maintainAspectRatio:false,responsive:true} });
+      chComp=new Chart(document.getElementById('chartComparativo').getContext('2d'),{ type:'bar', data:{labels:[],datasets:[{label:'Entradas',data:[],backgroundColor:'#00a86b'},{label:'Saídas',data:[],backgroundColor:'#dc3545'}]}, options:{maintainAspectRatio:false,responsive:true} });
+      const anoCtx=document.getElementById('chartAnoMeses');
+      if(anoCtx){ chAnoMeses=new Chart(anoCtx.getContext('2d'),{ type:'bar', data:{labels:[],datasets:[{label:'Entradas Ano',data:[],backgroundColor:'#198754'},{label:'Saídas Ano',data:[],backgroundColor:'#dc3545'}]}, options:{maintainAspectRatio:false,responsive:true} }); }
+    }
+  function updateCharts(){ const arr=[...getTrans()].sort((a,b)=> new Date(a.data)-new Date(b.data)); let s=0; const labels=[], data=[]; arr.forEach(t=>{ s+=t.entrada-t.saida; labels.push(fmtDate(t.data)); data.push(s); }); chSaldo.data.labels=labels; chSaldo.data.datasets[0].data=data; chSaldo.update(); const cat=CATEGORIAS.reduce((acc,c)=>{acc[c]=0;return acc;},{}); getTrans().forEach(t=>{ if(cat[t.categoria]!=null) cat[t.categoria]+=t.saida; }); const l=[], d=[]; Object.keys(cat).forEach(c=>{ if(cat[c]>0){ l.push(c); d.push(cat[c]); } }); chCats.data.labels=l; chCats.data.datasets[0].data=d; chCats.update(); const eBy={}, sBy={}; CATEGORIAS.forEach(c=>{eBy[c]=0; sBy[c]=0;}); getTrans().forEach(t=>{ if(eBy[t.categoria]!=null){ eBy[t.categoria]+=t.entrada; sBy[t.categoria]+=t.saida; } }); chComp.data.labels=CATEGORIAS; chComp.data.datasets[0].data=Object.values(eBy); chComp.data.datasets[1].data=Object.values(sBy); chComp.update(); }
+  function exportXLSX(){
+    const aoa = (function(){
+      const header = ['id','data','descricao','categoria','entrada','saida'];
+      const rows = transactions.map(t=>[t.id,t.data,t.descricao,t.categoria,Number(t.entrada||0),Number(t.saida||0)]);
+      return [header, ...rows];
+    })();
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, `${String(currentMonth).padStart(2,'0')}-${currentYear}`);
+    const wbout = XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    const blob = new Blob([wbout], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=keyFile(); a.click(); URL.revokeObjectURL(a.href);
+  }
+  function importXLSX(e){
+    const file=e.target.files[0]; if(!file) return;
+    const reader=new FileReader();
+    reader.onload=()=>{ try{
+      const data=new Uint8Array(reader.result);
+      const wb=XLSX.read(data,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const arr = sheetToTransactions(ws);
+      transactions = arr;
+      saveTransactions().then(()=>loadTransactions()).then(()=>{ renderAll(); Swal.fire({icon:'success',title:'Importado!'}); });
+    } catch{ Swal.fire({icon:'error',title:'Arquivo inválido'}); } };
+    reader.readAsArrayBuffer(file);
+    e.target.value='';
+  }
+  // ====== ANO / GERAL AGGREGATIONS ======
+  async function carregarAno(ano){
+    if(!salvarDirHandle){ return Swal.fire({icon:'info',title:'Selecione a pasta salvar'}); }
+    const mesesData=[]; // array de arrays de transações por mês
+    for(let m=1;m<=12;m++){
+      const fname=`${String(m).padStart(2,'0')}-${ano}.xlsx`;
+      try{ const fh=await salvarDirHandle.getFileHandle(fname,{create:false}); const arr=await fileReadXlsx(fh); mesesData.push({mes:m, trans:arr}); }catch{ mesesData.push({mes:m, trans:[]}); }
+    }
+    // Atualiza escopo para Ano e reflete nas tabelas principais
+    const all = mesesData.flatMap(md=> md.trans.map(t=>({...t})));
+    setScope('year', all);
+    renderAll();
+    // Categoria resumo anual
+    const catMap=CATEGORIAS.reduce((a,c)=>{a[c]={e:0,s:0}; return a;},{});
+    mesesData.forEach(md=> md.trans.forEach(t=>{ if(catMap[t.categoria]){ catMap[t.categoria].e+=t.entrada; catMap[t.categoria].s+=t.saida; }}));
+    const $tbody=$('#tblAnoCat tbody').empty(); let totE=0, totS=0;
+    Object.keys(catMap).forEach(c=>{ const e=catMap[c].e; const s=catMap[c].s; totE+=e; totS+=s; const d=e-s; const cls=d>=0?'text-success':'text-danger'; $tbody.append(`<tr><td><strong>${c}</strong></td><td class='text-end text-success'>${fmtMoney(e)}</td><td class='text-end text-danger'>${fmtMoney(s)}</td><td class='text-end ${cls} fw-bold'>${fmtMoney(d)}</td></tr>`); });
+    $('#tblAnoCat tfoot').html(`<tr><th class='text-end'>Totais:</th><th class='text-end text-success'>${fmtMoney(totE)}</th><th class='text-end text-danger'>${fmtMoney(totS)}</th><th class='text-end fw-bold'>${fmtMoney(totE-totS)}</th></tr>`);
+    // Mensal chart
+    if(chAnoMeses){
+      const labels=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+      const entradas=mesesData.map(md=> md.trans.reduce((a,t)=>a+t.entrada,0));
+      const saidas=mesesData.map(md=> md.trans.reduce((a,t)=>a+t.saida,0));
+      chAnoMeses.data.labels=labels; chAnoMeses.data.datasets[0].data=entradas; chAnoMeses.data.datasets[1].data=saidas; chAnoMeses.update();
+    }
+    $('#anoInfo').text(`Ano ${ano}: ${fmtMoney(totE)} entradas / ${fmtMoney(totS)} saídas`);
+  }
+  async function listarArquivosMes(){
+    if(!salvarDirHandle) return [];
+    const out=[];
+    for await (const entry of salvarDirHandle.values()){
+      if(entry.kind==='file' && /\d{2}-\d{4}\.xlsx$/.test(entry.name)) out.push(entry.name);
+    }
+    return out;
+  }
+  async function carregarTodosAnos(){
+    if(!salvarDirHandle){ return Swal.fire({icon:'info',title:'Selecione a pasta salvar'}); }
+    const files=await listarArquivosMes();
+    const anos=[...new Set(files.map(f=> f.slice(3,7)))].sort();
+    const porAno=anos.map(a=>({ano:a, entradas:0, saídas:0}));
+    const allTrans=[];
+    for(const f of files){
+      try{ const fh=await salvarDirHandle.getFileHandle(f,{create:false}); const arr=await fileReadXlsx(fh); const ano=f.slice(3,7); const idx=porAno.findIndex(x=>x.ano===ano); arr.forEach(t=>{ porAno[idx].entradas+=t.entrada; porAno[idx].saídas+=t.saida; allTrans.push({...t}); }); }catch{}
+    }
+    // Atualiza escopo para Todos e reflete nas tabelas principais
+    setScope('all', allTrans);
+    renderAll();
+    const $tb=$('#tblTodosAnos tbody').empty(); let tE=0,tS=0; porAno.forEach(r=>{ tE+=r.entradas; tS+=r.saídas; const d=r.entradas-r.saídas; const cls=d>=0?'text-success':'text-danger'; $tb.append(`<tr><td><strong>${r.ano}</strong></td><td class='text-end text-success'>${fmtMoney(r.entradas)}</td><td class='text-end text-danger'>${fmtMoney(r.saídas)}</td><td class='text-end ${cls} fw-bold'>${fmtMoney(d)}</td></tr>`); }); $('#tblTodosAnos tfoot').html(`<tr><th class='text-end'>Totais:</th><th class='text-end text-success'>${fmtMoney(tE)}</th><th class='text-end text-danger'>${fmtMoney(tS)}</th><th class='text-end fw-bold'>${fmtMoney(tE-tS)}</th></tr>`); $('#anoInfo').text(`Todos os anos: ${fmtMoney(tE)} entradas / ${fmtMoney(tS)} saídas`);
+  }
+  async function exportarAnoXLSX(ano){
+    if(!salvarDirHandle){ return Swal.fire({icon:'info',title:'Selecione a pasta salvar'}); }
+    const wb=XLSX.utils.book_new();
+    for(let m=1;m<=12;m++){
+      const fname=`${String(m).padStart(2,'0')}-${ano}.xlsx`;
+      try{ const fh=await salvarDirHandle.getFileHandle(fname,{create:false}); const arr=await fileReadXlsx(fh); const aoa=[['id','data','descricao','categoria','entrada','saida'], ...arr.map(t=>[t.id,t.data,t.descricao,t.categoria,t.entrada,t.saida])]; const ws=XLSX.utils.aoa_to_sheet(aoa); XLSX.utils.book_append_sheet(wb, ws, `${String(m).padStart(2,'0')}`); }catch{ /* ignore missing month */ }
+    }
+    const buf=XLSX.write(wb,{bookType:'xlsx',type:'array'}); const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`ANO-${ano}.xlsx`; a.click(); URL.revokeObjectURL(a.href);
+  }
+  async function exportarTodosAnosXLSX(){
+    if(!salvarDirHandle){ return Swal.fire({icon:'info',title:'Selecione a pasta salvar'}); }
+    const files=await listarArquivosMes();
+    if(files.length===0) return Swal.fire({icon:'info',title:'Nenhum arquivo encontrado'});
+    const wb=XLSX.utils.book_new();
+    for(const f of files.sort()){
+      try{ const fh=await salvarDirHandle.getFileHandle(f,{create:false}); const arr=await fileReadXlsx(fh); const aoa=[['id','data','descricao','categoria','entrada','saida'], ...arr.map(t=>[t.id,t.data,t.descricao,t.categoria,t.entrada,t.saida])]; const ws=XLSX.utils.aoa_to_sheet(aoa); const sheetName=f.replace('.xlsx','').slice(0,31); XLSX.utils.book_append_sheet(wb, ws, sheetName); }catch{}
+    }
+    const buf=XLSX.write(wb,{bookType:'xlsx',type:'array'}); const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='TODOS-ANOS.xlsx'; a.click(); URL.revokeObjectURL(a.href);
+  }
+  </script>
+</body>
+</html>
