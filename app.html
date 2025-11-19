@@ -10,23 +10,349 @@
   <link href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.14.1/dist/sweetalert2.min.css" rel="stylesheet" />
   <style>
-    :root{ --primary:#0033cc; --primary-dark:#001a66; --success:#008000; --danger:#c00000; --info:#0000c0; }
-    body{font-family:Segoe UI, Tahoma, sans-serif; background:linear-gradient(135deg,#667eea,#764ba2); min-height:100vh; padding:24px}
-    .container-xl{max-width:1400px}
-    .header-card{background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:#fff; padding:24px; border-radius:16px; box-shadow:0 12px 30px rgba(0,0,0,.25)}
-    .stats .card{border:none; border-left:6px solid transparent}
+    :root{ 
+      --primary:#1a1d29; 
+      --primary-dark:#0f1117; 
+      --secondary:#2d3142;
+      --accent:#4a90e2;
+      --success:#10b981; 
+      --danger:#ef4444; 
+      --warning:#f59e0b;
+      --text-primary:#e5e7eb;
+      --text-secondary:#9ca3af;
+      --bg-dark:#0f1117;
+      --bg-card:#1a1d29;
+      --border:#2d3142;
+    }
+    * { box-sizing: border-box; }
+    body{
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; 
+      background: var(--bg-dark);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(74, 144, 226, 0.1) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.08) 0px, transparent 50%);
+      min-height:100vh; 
+      padding:24px;
+      color: var(--text-primary);
+    }
+    .container-xl{max-width:1400px; margin: 0 auto;}
+    
+    .header-card{
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      border: 1px solid var(--border);
+      color:#fff; 
+      padding:32px; 
+      border-radius:16px; 
+      box-shadow: 0 20px 40px rgba(0,0,0,.4), 0 0 1px rgba(255,255,255,.1) inset;
+      backdrop-filter: blur(10px);
+    }
+    .header-card h1 { 
+      font-weight: 700; 
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+    .header-card p { 
+      color: var(--text-secondary); 
+      font-size: 0.95rem;
+    }
+    
+    .stats .card{
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-left: 4px solid transparent;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,.3);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .stats .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0,0,0,.4);
+    }
     .stats .entradas{border-left-color:var(--success)}
     .stats .saidas{border-left-color:var(--danger)}
-    .stats .saldo{border-left-color:var(--info)}
-    .stats .value{font-size:1.8rem; font-weight:700}
-    .content-card{background:#fff; border-radius:14px; padding:24px; box-shadow:0 6px 20px rgba(0,0,0,.12)}
-    .categoria-badge{display:inline-block; padding:3px 10px; border-radius:12px; background:#eef1f4; font-weight:600; font-size:.85rem}
-    #tabelaLancamentos thead{background:var(--primary); color:#fff}
-    .cell-entrada{background:#c6efce !important; font-weight:700}
-    .cell-saida{background:#ffc7ce !important; font-weight:700}
+    .stats .saldo{border-left-color:var(--accent)}
+    .stats .card > div:first-child {
+      font-size: 0.875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+    .stats .value{
+      font-size:2rem; 
+      font-weight:700;
+      font-variant-numeric: tabular-nums;
+    }
+    
+    .content-card{
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius:16px; 
+      padding:28px; 
+      box-shadow: 0 8px 24px rgba(0,0,0,.3);
+      backdrop-filter: blur(10px);
+    }
+    
+    .form-label { 
+      color: var(--text-secondary); 
+      font-weight: 500;
+      font-size: 0.875rem;
+      margin-bottom: 6px;
+    }
+    .form-control, .form-select {
+      background: var(--primary-dark);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      border-radius: 8px;
+      padding: 10px 14px;
+      transition: all 0.2s;
+    }
+    .form-control:focus, .form-select:focus {
+      background: var(--bg-card);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+      color: var(--text-primary);
+      outline: none;
+    }
+    .form-control::placeholder {
+      color: var(--text-secondary);
+      opacity: 0.6;
+    }
+    
+    .btn {
+      font-weight: 600;
+      border-radius: 8px;
+      padding: 10px 20px;
+      transition: all 0.2s;
+      border: none;
+      text-transform: none;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+      border: 1px solid rgba(74, 144, 226, 0.3);
+    }
+    .btn-primary:hover {
+      background: #357ABD;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+    }
+    .btn-secondary {
+      background: var(--secondary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover {
+      background: #3d4252;
+      color: white;
+    }
+    .btn-outline-primary, .btn-outline-success, .btn-outline-warning, .btn-outline-dark, .btn-outline-secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+    }
+    .btn-outline-primary:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+    .btn-outline-success:hover {
+      background: var(--success);
+      border-color: var(--success);
+      color: white;
+    }
+    .btn-outline-warning:hover {
+      background: var(--warning);
+      border-color: var(--warning);
+      color: white;
+    }
+    .btn-danger {
+      background: var(--danger);
+      color: white;
+    }
+    .btn-danger:hover {
+      background: #dc2626;
+      transform: translateY(-1px);
+    }
+    
+    .badge {
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      letter-spacing: 0.025em;
+    }
+    .text-bg-info {
+      background: var(--accent) !important;
+      color: white !important;
+    }
+    .text-bg-secondary {
+      background: var(--secondary) !important;
+      color: var(--text-secondary) !important;
+    }
+    
+    .categoria-badge{
+      display:inline-block; 
+      padding:4px 12px; 
+      border-radius:6px; 
+      background: var(--secondary);
+      color: var(--text-primary);
+      font-weight:600; 
+      font-size:.8rem;
+      border: 1px solid var(--border);
+    }
+    
+    .nav-tabs {
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 24px;
+    }
+    .nav-tabs .nav-link {
+      color: var(--text-secondary);
+      border: none;
+      border-bottom: 2px solid transparent;
+      padding: 12px 20px;
+      font-weight: 500;
+      transition: all 0.2s;
+      background: transparent;
+    }
+    .nav-tabs .nav-link:hover {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      background: rgba(74, 144, 226, 0.05);
+    }
+    .nav-tabs .nav-link.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      background: transparent;
+      font-weight: 600;
+    }
+    
+    .table {
+      color: var(--text-primary);
+      border-color: var(--border);
+    }
+    .table thead {
+      background: var(--primary);
+      color: #e5e7eb;
+      border: none;
+    }
+    .table thead th {
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+      padding: 14px 12px;
+      border: none;
+    }
+    .table tbody tr {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+    .table tbody tr:hover {
+      background: var(--secondary);
+    }
+    .table tbody td {
+      padding: 14px 12px;
+      border-color: var(--border);
+      vertical-align: middle;
+      color: #141414;
+    }
+    .table tbody td strong {
+      color: #141414;
+      font-weight: 600;
+    }
+    .table tfoot th {
+      background: var(--secondary);
+      font-weight: 700;
+      padding: 14px 12px;
+      border-top: 2px solid var(--border);
+      color: var(--text-primary);
+    }
+    .table-striped tbody tr:nth-of-type(odd) {
+      background: rgba(45, 49, 66, 0.3);
+    }
+    .table-dark, .table-info, .table-primary {
+      --bs-table-bg: var(--primary);
+      --bs-table-color: #e5e7eb;
+    }
+    
+    #tabelaLancamentos {
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    #tabelaLancamentos thead{background:var(--primary); color:#e5e7eb; border: none;}
+    #tabelaLancamentos thead th:first-child {
+      border-top-left-radius: 12px;
+    }
+    #tabelaLancamentos thead th:last-child {
+      border-top-right-radius: 12px;
+    }
+    .cell-entrada{background:rgba(16, 185, 129, 0.12) !important; color: #6ee7b7 !important; font-weight:600}
+    .cell-saida{background:rgba(239, 68, 68, 0.12) !important; color: #fca5a5 !important; font-weight:600}
     .saldo-neg{color:var(--danger) !important; font-weight:700}
     .saldo-pos{color:var(--success) !important; font-weight:700}
-    .chart-wrap{position:relative; height:320px}
+    .text-success { color: var(--success) !important; }
+    .text-danger { color: var(--danger) !important; }
+    .text-primary { color: var(--accent) !important; }
+    .text-muted { color: var(--text-secondary) !important; }
+    
+    .chart-wrap{
+      position:relative; 
+      height:320px;
+      background: var(--primary-dark);
+      border-radius: 12px;
+      padding: 16px;
+      border: 1px solid var(--border);
+    }
+    
+    .table-responsive {
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    
+    small, .small {
+      color: var(--text-secondary);
+    }
+    
+    /* DataTables overrides */
+    .dataTables_wrapper .dataTables_length,
+    .dataTables_wrapper .dataTables_filter,
+    .dataTables_wrapper .dataTables_info,
+    .dataTables_wrapper .dataTables_paginate {
+      color: var(--text-secondary);
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button {
+      color: var(--text-primary) !important;
+      background: var(--secondary);
+      border: 1px solid var(--border);
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+      color: white !important;
+      background: var(--accent) !important;
+      border-color: var(--accent) !important;
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+      color: white !important;
+      background: var(--accent) !important;
+      border-color: var(--accent) !important;
+    }
+    
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--primary-dark);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 5px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--secondary);
+    }
   </style>
 </head>
 <body>
@@ -300,6 +626,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.14.1/dist/sweetalert2.all.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <script>
     let currentMonth = new Date().getMonth() + 1;
     let currentYear = new Date().getFullYear();
@@ -500,18 +827,119 @@
       if(anoCtx){ chAnoMeses=new Chart(anoCtx.getContext('2d'),{ type:'bar', data:{labels:[],datasets:[{label:'Entradas Ano',data:[],backgroundColor:'#198754'},{label:'Saídas Ano',data:[],backgroundColor:'#dc3545'}]}, options:{maintainAspectRatio:false,responsive:true} }); }
     }
   function updateCharts(){ const arr=[...getTrans()].sort((a,b)=> new Date(a.data)-new Date(b.data)); let s=0; const labels=[], data=[]; arr.forEach(t=>{ s+=t.entrada-t.saida; labels.push(fmtDate(t.data)); data.push(s); }); chSaldo.data.labels=labels; chSaldo.data.datasets[0].data=data; chSaldo.update(); const cat=CATEGORIAS.reduce((acc,c)=>{acc[c]=0;return acc;},{}); getTrans().forEach(t=>{ if(cat[t.categoria]!=null) cat[t.categoria]+=t.saida; }); const l=[], d=[]; Object.keys(cat).forEach(c=>{ if(cat[c]>0){ l.push(c); d.push(cat[c]); } }); chCats.data.labels=l; chCats.data.datasets[0].data=d; chCats.update(); const eBy={}, sBy={}; CATEGORIAS.forEach(c=>{eBy[c]=0; sBy[c]=0;}); getTrans().forEach(t=>{ if(eBy[t.categoria]!=null){ eBy[t.categoria]+=t.entrada; sBy[t.categoria]+=t.saida; } }); chComp.data.labels=CATEGORIAS; chComp.data.datasets[0].data=Object.values(eBy); chComp.data.datasets[1].data=Object.values(sBy); chComp.update(); }
-  function exportXLSX(){
-    const aoa = (function(){
-      const header = ['id','data','descricao','categoria','entrada','saida'];
-      const rows = transactions.map(t=>[t.id,t.data,t.descricao,t.categoria,Number(t.entrada||0),Number(t.saida||0)]);
-      return [header, ...rows];
+  async function exportXLSX(){
+    // Exportar as TABELAS (Lançamentos, Resumo, Pivot) usando ExcelJS, com fallback para SheetJS
+    const dados = [...getTrans()].sort((a,b)=> new Date(a.data)-new Date(b.data));
+    if(!dados.length){ return Swal.fire({icon:'info',title:'Nenhum dado para exportar.'}); }
+
+    const dataH = new Date();
+    const dataHoje = `${String(dataH.getDate()).padStart(2,'0')}_${String(dataH.getMonth()+1).padStart(2,'0')}_${dataH.getFullYear()}`;
+    const fmtBRData = (iso) => {
+      if(!iso) return '';
+      const part = String(iso).slice(0,10);
+      const [y,m,d] = part.split('-').map(n=>parseInt(n,10));
+      if(!y||!m||!d) return part;
+      const dt = new Date(y, m-1, d);
+      return `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`;
+    };
+
+    // Recalcula saldo acumulado para export
+    let saldo=0;
+    const linhasLanc = dados.map(t=>{ saldo += (Number(t.entrada||0) - Number(t.saida||0)); return [fmtBRData(t.data), t.descricao, t.categoria, Number(t.entrada||0), Number(t.saida||0), saldo]; });
+
+    // Resumo por categoria
+    const byCat = CATEGORIAS.reduce((acc,c)=>{acc[c]={e:0,s:0};return acc;},{});
+    dados.forEach(t=>{ if(byCat[t.categoria]){ byCat[t.categoria].e += Number(t.entrada||0); byCat[t.categoria].s += Number(t.saida||0);} });
+    const linhasResumo = Object.keys(byCat).map(c=>{ const e=byCat[c].e, s=byCat[c].s; return [c, e, s, e-s]; });
+
+    // Pivot (igual ao resumo neste contexto)
+    const linhasPivot = linhasResumo.map(r=>[...r]);
+
+    const fileName = (function(){
+      if(scopeMode==='month') return `TABELAS-${String(currentMonth).padStart(2,'0')}-${currentYear}_${dataHoje}.xlsx`;
+      if(scopeMode==='year')  return `TABELAS-ANO-${currentYear}_${dataHoje}.xlsx`;
+      return `TABELAS-TODOS_${dataHoje}.xlsx`;
     })();
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, `${String(currentMonth).padStart(2,'0')}-${currentYear}`);
-    const wbout = XLSX.write(wb,{bookType:'xlsx',type:'array'});
-    const blob = new Blob([wbout], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=keyFile(); a.click(); URL.revokeObjectURL(a.href);
+
+    const HEADER_STYLE = (cell)=>{
+      cell.font = { bold:true, color:{argb:'FFFFFFFF'} };
+      cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF4B81BD'} };
+      cell.alignment = { vertical:'middle', horizontal:'center' };
+      cell.border = { top:{style:'thin'}, bottom:{style:'thin'}, left:{style:'thin'}, right:{style:'thin'} };
+    };
+
+    try{
+      if(typeof ExcelJS==='undefined' || !ExcelJS.Workbook) throw new Error('ExcelJS não carregada');
+      const wb = new ExcelJS.Workbook();
+      wb.creator = 'Controle Financeiro'; wb.created = new Date();
+
+      // Sheet: Lançamentos
+      const wsLanc = wb.addWorksheet('Lançamentos');
+      wsLanc.columns = [
+        {header:'Data', key:'data', width:12},
+        {header:'Descrição', key:'desc', width:36},
+        {header:'Categoria', key:'cat', width:20},
+        {header:'Entrada (+)', key:'ent', width:16},
+        {header:'Saída (-)', key:'sai', width:16},
+        {header:'Saldo', key:'saldo', width:16}
+      ];
+      linhasLanc.forEach(r=> wsLanc.addRow(r));
+      wsLanc.getRow(1).eachCell(HEADER_STYLE);
+      wsLanc.getColumn(4).numFmt = "[$R$-416] #,##0.00";
+      wsLanc.getColumn(5).numFmt = "[$R$-416] #,##0.00";
+      wsLanc.getColumn(6).numFmt = "[$R$-416] #,##0.00";
+      wsLanc.getColumn(4).alignment = {horizontal:'right'};
+      wsLanc.getColumn(5).alignment = {horizontal:'right'};
+      wsLanc.getColumn(6).alignment = {horizontal:'right'};
+
+      // Sheet: Resumo por categoria
+      const wsResumo = wb.addWorksheet('Resumo');
+      wsResumo.columns = [
+        {header:'Categoria', key:'c', width:24},
+        {header:'Total Entradas', key:'e', width:18},
+        {header:'Total Saídas', key:'s', width:18},
+        {header:'Diferença', key:'d', width:18}
+      ];
+      linhasResumo.forEach(r=> wsResumo.addRow(r));
+      wsResumo.getRow(1).eachCell(HEADER_STYLE);
+      wsResumo.getColumn(2).numFmt = "[$R$-416] #,##0.00";
+      wsResumo.getColumn(3).numFmt = "[$R$-416] #,##0.00";
+      wsResumo.getColumn(4).numFmt = "[$R$-416] #,##0.00";
+      wsResumo.getColumn(2).alignment = {horizontal:'right'};
+      wsResumo.getColumn(3).alignment = {horizontal:'right'};
+      wsResumo.getColumn(4).alignment = {horizontal:'right'};
+
+      // Sheet: Pivot
+      const wsPivot = wb.addWorksheet('Pivot');
+      wsPivot.columns = [
+        {header:'Categoria', key:'c', width:24},
+        {header:'Total Entradas', key:'e', width:18},
+        {header:'Total Saídas', key:'s', width:18},
+        {header:'Diferença', key:'d', width:18}
+      ];
+      linhasPivot.forEach(r=> wsPivot.addRow(r));
+      wsPivot.getRow(1).eachCell(HEADER_STYLE);
+      wsPivot.getColumn(2).numFmt = "[$R$-416] #,##0.00";
+      wsPivot.getColumn(3).numFmt = "[$R$-416] #,##0.00";
+      wsPivot.getColumn(4).numFmt = "[$R$-416] #,##0.00";
+      wsPivot.getColumn(2).alignment = {horizontal:'right'};
+      wsPivot.getColumn(3).alignment = {horizontal:'right'};
+      wsPivot.getColumn(4).alignment = {horizontal:'right'};
+
+      const buf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fileName; a.click(); URL.revokeObjectURL(a.href);
+    }catch(err){
+      console.warn('ExcelJS falhou, usando fallback simples SheetJS', err);
+      // Fallback: exporta apenas Lançamentos simples (como antes)
+      const aoa = [['Data','Descrição','Categoria','Entrada (+)','Saída (-)','Saldo'], ...linhasLanc];
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Lançamentos');
+      const wbout = XLSX.write(wb,{bookType:'xlsx',type:'array'});
+      const blob = new Blob([wbout], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fileName; a.click(); URL.revokeObjectURL(a.href);
+    }
   }
   function importXLSX(e){
     const file=e.target.files[0]; if(!file) return;
