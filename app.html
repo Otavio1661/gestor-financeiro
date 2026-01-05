@@ -1,9 +1,32 @@
 <!DOCTYPE html>
+<!--
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                     💰 GESTOR FINANCEIRO PESSOAL                             ║
+║                                                                              ║
+║  Desenvolvedor: Otavio Silva                                                ║
+║  Email: otavio.silva1661@gmail.com                                          ║
+║  WhatsApp: (44) 99734-1687                                                  ║
+║  GitHub: https://github.com/Otavio1661                                     ║
+║                                                                              ║
+║  Descrição: Sistema completo de controle financeiro pessoal com interface   ║
+║             moderna, armazenamento em arquivos XLSX locais e visualizações  ║
+║             gráficas avançadas.                                             ║
+║                                                                              ║
+║  Versão: 1.0.0                                                              ║
+║  Data: Janeiro 2026                                                         ║
+║  Licença: MIT License                                                       ║
+║                                                                              ║
+║  Copyright (c) 2026 Otavio Silva                                            ║
+║  Todos os direitos reservados sob a Licença MIT                             ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+-->
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Controle Financeiro</title>
+  <meta name="author" content="Otavio Silva" />
+  <meta name="description" content="Sistema de controle financeiro pessoal - Desenvolvido por Otavio Silva" />
+  <title>Controle Financeiro - by Otavio Silva</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
   <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet" />
@@ -362,6 +385,7 @@
         <div class="col-lg-6">
           <h1 class="h3 mb-1"><i class="bi bi-wallet2"></i> Controle Financeiro</h1>
           <p class="mb-0">Gestão de receitas e despesas por mês/ano com planilha por mês</p>
+          <p class="mb-0 mt-1"><small class="text-muted">Desenvolvido por <a href="https://github.com/Otavio1661" target="_blank" class="text-muted text-decoration-none">Otávio Silva</a> © 2026</small></p>
         </div>
         <div class="col-lg-6">
           <div class="row g-2">
@@ -648,6 +672,19 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <script>
+    /**
+     * ============================================================================
+     * GESTOR FINANCEIRO PESSOAL v1.0.0
+     * ============================================================================
+     * Desenvolvedor: Otávio Silva
+     * Email: otavio.silva1661@gmail.com
+     * GitHub: https://github.com/Otavio1661
+     * 
+     * Copyright (c) 2026 Otávio Silva
+     * Licenciado sob MIT License
+     * ============================================================================
+     */
+    
     let currentMonth = new Date().getMonth() + 1;
     let currentYear = new Date().getFullYear();
     let transactions = [];
