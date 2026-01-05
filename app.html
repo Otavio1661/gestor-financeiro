@@ -438,6 +438,8 @@
             <option>Saúde</option>
             <option>Lazer</option>
             <option>Educação</option>
+            <option>Cartão de Crédito</option>
+            <option>Cartão de Débito</option>
             <option>Outros</option>
           </select>
         </div>
@@ -579,15 +581,28 @@
           </div>
         </div>
         <div class="tab-pane fade" id="tabAno">
-          <div class="d-flex flex-wrap gap-2 mb-3">
-            <button class="btn btn-outline-primary" id="btnCarregarAno"><i class="bi bi-search"></i> Ver Ano</button>
+          <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+            <button class="btn btn-outline-primary" id="btnCarregarAno"><i class="bi bi-search"></i> Carregar Ano</button>
             <button class="btn btn-outline-success" id="btnExportarAno"><i class="bi bi-download"></i> Exportar Ano XLSX</button>
-            <button class="btn btn-outline-secondary" id="btnCarregarTodos"><i class="bi bi-collection"></i> Ver Todos Anos</button>
+            <button class="btn btn-outline-secondary" id="btnCarregarTodos"><i class="bi bi-collection"></i> Carregar Todos</button>
             <button class="btn btn-outline-warning" id="btnExportarTodos"><i class="bi bi-cloud-download"></i> Exportar Todos XLSX</button>
             <button class="btn btn-outline-dark" id="btnVoltarMes"><i class="bi bi-arrow-left-circle"></i> Voltar para Mês</button>
-            <span id="anoInfo" class="small text-muted"></span>
+            <div class="vr" style="height:30px"></div>
+            <span class="small fw-bold text-muted">Visualizar:</span>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="toggleAno" checked>
+              <label class="form-check-label small" for="toggleAno">Dados do Ano</label>
+            </div>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="toggleTodos" checked>
+              <label class="form-check-label small" for="toggleTodos">Todos os Anos</label>
+            </div>
+            <span id="anoInfo" class="small text-muted ms-auto"></span>
           </div>
-          <div class="row g-3">
+          <div class="row g-3" id="secaoAno" style="display:none">
+            <div class="col-12">
+              <h6 class="text-muted mb-3"><i class="bi bi-calendar-check"></i> Resumo Anual por Categoria</h6>
+            </div>
             <div class="col-lg-6">
               <div class="table-responsive">
                 <table class="table table-bordered table-sm" id="tblAnoCat">
@@ -601,6 +616,11 @@
             </div>
             <div class="col-lg-6">
               <div class="chart-wrap"><canvas id="chartAnoMeses"></canvas></div>
+            </div>
+          </div>
+          <div class="row g-3 mt-1" id="secaoTodos" style="display:none">
+            <div class="col-12">
+              <h6 class="text-muted mb-3"><i class="bi bi-calendar2-range"></i> Comparativo de Todos os Anos</h6>
             </div>
             <div class="col-12">
               <div class="table-responsive">
@@ -643,7 +663,7 @@
       if(scopeMode==='year'){ $badge.text('Ano').removeClass('text-bg-info').addClass('text-bg-secondary'); $('#btnAtualizar').prop('disabled', true); }
       if(scopeMode==='all'){ $badge.text('Todos').removeClass('text-bg-info').addClass('text-bg-secondary'); $('#btnAtualizar').prop('disabled', true); }
     }
-    const CATEGORIAS = ["Salário","Receita Extra","Moradia","Alimentação","Transporte","Saúde","Lazer","Educação","Outros"];
+    const CATEGORIAS = ["Salário","Receita Extra","Moradia","Alimentação","Transporte","Saúde","Lazer","Educação","Cartão de Crédito","Cartão de Débito","Outros"];
     const fmtMoney = v => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v||0);
     const fmtDate = s => {const d=new Date(s+'T00:00:00'); return d.toLocaleDateString('pt-BR');}
   const keyFile = () => `${String(currentMonth).padStart(2,'0')}-${currentYear}.xlsx`;
@@ -651,8 +671,17 @@
 
   $(function(){ initSelectors(); setToday(); bindEvents(); initFs().then(()=>loadTransactions()).then(()=>{ initCharts(); renderAll(); }); });
     function initSelectors(){ $('#monthSelect').val(String(currentMonth).padStart(2,'0')); const $y=$('#yearSelect'); for(let y=2020;y<=2035;y++) $y.append(`<option ${y===currentYear?'selected':''}>${y}</option>`); }
-    function setToday(){ $('#data').val(new Date().toISOString().split('T')[0]); }
-  function bindEvents(){ $('#formLancamento').on('submit', onAdd); $('#monthSelect,#yearSelect').on('change', ()=>{currentMonth=parseInt($('#monthSelect').val()); currentYear=parseInt($('#yearSelect').val()); setScope('month'); loadTransactions().then(()=>{ renderAll(); });}); $('#btnAtualizar').on('click', ()=>{ saveTransactions().then(()=>loadTransactions()).then(()=>{ renderAll(); Swal.fire({icon:'success',title:'Salvo/Atualizado!',timer:1000,showConfirmButton:false}); }); }); $('#entrada').on('input', ()=>{ if($('#entrada').val()) $('#saida').val(''); }); $('#saida').on('input', ()=>{ if($('#saida').val()) $('#entrada').val(''); }); $('#btnExportar').on('click', exportXLSX); $('#inputImportar').on('change', importXLSX); $('#btnFolder').on('click', selectSalvarFolder); $('#btnCarregarAno').on('click', ()=>{ carregarAno(currentYear); }); $('#btnExportarAno').on('click', ()=>{ exportarAnoXLSX(currentYear); }); $('#btnCarregarTodos').on('click', carregarTodosAnos); $('#btnExportarTodos').on('click', exportarTodosAnosXLSX); $('#btnVoltarMes').on('click', ()=>{ setScope('month'); loadTransactions().then(()=>{ renderAll(); Swal.fire({icon:'info',title:'Voltou para Mês',timer:800,showConfirmButton:false}); }); }); }
+    function setToday(){ 
+      // Define a data para o primeiro dia do mês/ano selecionado
+      const mesAtual = String(currentMonth).padStart(2,'0');
+      const anoAtual = currentYear;
+      $('#data').val(`${anoAtual}-${mesAtual}-01`);
+      // Define limites min/max no campo de data
+      const ultimoDia = new Date(anoAtual, currentMonth, 0).getDate();
+      $('#data').attr('min', `${anoAtual}-${mesAtual}-01`);
+      $('#data').attr('max', `${anoAtual}-${mesAtual}-${String(ultimoDia).padStart(2,'0')}`);
+    }
+  function bindEvents(){ $('#formLancamento').on('submit', onAdd); $('#monthSelect,#yearSelect').on('change', ()=>{currentMonth=parseInt($('#monthSelect').val()); currentYear=parseInt($('#yearSelect').val()); setScope('month'); setToday(); loadTransactions().then(()=>{ renderAll(); });}); $('#btnAtualizar').on('click', ()=>{ saveTransactions().then(()=>loadTransactions()).then(()=>{ renderAll(); Swal.fire({icon:'success',title:'Salvo/Atualizado!',timer:1000,showConfirmButton:false}); }); }); $('#entrada').on('input', ()=>{ if($('#entrada').val()) $('#saida').val(''); }); $('#saida').on('input', ()=>{ if($('#saida').val()) $('#entrada').val(''); }); $('#btnExportar').on('click', exportXLSX); $('#inputImportar').on('change', importXLSX); $('#btnFolder').on('click', selectSalvarFolder); $('#btnCarregarAno').on('click', ()=>{ carregarAno(currentYear); $('#toggleAno').prop('checked', true); updateAnoVisibility(); }); $('#btnExportarAno').on('click', ()=>{ exportarAnoXLSX(currentYear); }); $('#btnCarregarTodos').on('click', ()=>{ carregarTodosAnos(); $('#toggleTodos').prop('checked', true); updateAnoVisibility(); }); $('#btnExportarTodos').on('click', exportarTodosAnosXLSX); $('#btnVoltarMes').on('click', ()=>{ setScope('month'); loadTransactions().then(()=>{ renderAll(); Swal.fire({icon:'info',title:'Voltou para Mês',timer:800,showConfirmButton:false}); }); }); $('#toggleAno').on('change', updateAnoVisibility); $('#toggleTodos').on('change', updateAnoVisibility); }
 
     // ===== File System Access API helpers (Chrome/Edge/Opera) =====
     async function idbOpen(){
@@ -767,7 +796,7 @@
       const raw=localStorage.getItem(`${String(currentMonth).padStart(2,'0')}-${currentYear}.json`);
       if(raw){ try{ transactions = JSON.parse(raw).transacoes||[]; }catch{ transactions=[]; } } else { transactions=[]; }
     }
-  function onAdd(e){ e.preventDefault(); if(scopeMode!=='month'){ return Swal.fire({icon:'info',title:'Adição apenas na visão Mensal'}); } const entrada=parseFloat($('#entrada').val()||'0'); const saida=parseFloat($('#saida').val()||'0'); if(entrada<=0 && saida<=0){ return Swal.fire({icon:'warning',title:'Informe Entrada ou Saída'}); } const t={id:Date.now(),data:$('#data').val(),descricao:$('#descricao').val(),categoria:$('#categoria').val(),entrada,saida,saldo:0}; transactions.push(t); saveTransactions().then(()=>loadTransactions()).then(()=>{ $('#formLancamento')[0].reset(); setToday(); renderAll(); Swal.fire({icon:'success',title:'Lançamento adicionado!',timer:900,showConfirmButton:false}); }); }
+  function onAdd(e){ e.preventDefault(); if(scopeMode!=='month'){ return Swal.fire({icon:'info',title:'Adição apenas na visão Mensal'}); } const entrada=parseFloat($('#entrada').val()||'0'); const saida=parseFloat($('#saida').val()||'0'); if(entrada<=0 && saida<=0){ return Swal.fire({icon:'warning',title:'Informe Entrada ou Saída'}); } const dataLanc = $('#data').val(); const [ano, mes] = dataLanc.split('-').map(n=>parseInt(n)); if(mes !== currentMonth || ano !== currentYear){ return Swal.fire({icon:'error',title:'Data inválida!',text:`A data deve estar em ${String(currentMonth).padStart(2,'0')}/${currentYear}`}); } const t={id:Date.now(),data:dataLanc,descricao:$('#descricao').val(),categoria:$('#categoria').val(),entrada,saida,saldo:0}; transactions.push(t); saveTransactions().then(()=>loadTransactions()).then(()=>{ $('#formLancamento')[0].reset(); setToday(); renderAll(); Swal.fire({icon:'success',title:'Lançamento adicionado!',timer:900,showConfirmButton:false}); }); }
   function onDelete(id){ if(scopeMode!=='month'){ return Swal.fire({icon:'info',title:'Exclusão apenas na visão Mensal'}); } Swal.fire({title:'Excluir lançamento?',icon:'warning',showCancelButton:true,confirmButtonText:'Excluir',confirmButtonColor:'#c00000'}).then(r=>{ if(r.isConfirmed){ transactions = transactions.filter(x=>x.id!==id); saveTransactions().then(()=>loadTransactions()).then(()=>renderAll()); } }); }
   function renderAll(){ renderLancamentos(); renderResumo(); renderCategorias(); renderPivot(); updateSummary(); updateCharts(); }
     function renderLancamentos(){
@@ -828,9 +857,10 @@
     }
   function updateCharts(){ const arr=[...getTrans()].sort((a,b)=> new Date(a.data)-new Date(b.data)); let s=0; const labels=[], data=[]; arr.forEach(t=>{ s+=t.entrada-t.saida; labels.push(fmtDate(t.data)); data.push(s); }); chSaldo.data.labels=labels; chSaldo.data.datasets[0].data=data; chSaldo.update(); const cat=CATEGORIAS.reduce((acc,c)=>{acc[c]=0;return acc;},{}); getTrans().forEach(t=>{ if(cat[t.categoria]!=null) cat[t.categoria]+=t.saida; }); const l=[], d=[]; Object.keys(cat).forEach(c=>{ if(cat[c]>0){ l.push(c); d.push(cat[c]); } }); chCats.data.labels=l; chCats.data.datasets[0].data=d; chCats.update(); const eBy={}, sBy={}; CATEGORIAS.forEach(c=>{eBy[c]=0; sBy[c]=0;}); getTrans().forEach(t=>{ if(eBy[t.categoria]!=null){ eBy[t.categoria]+=t.entrada; sBy[t.categoria]+=t.saida; } }); chComp.data.labels=CATEGORIAS; chComp.data.datasets[0].data=Object.values(eBy); chComp.data.datasets[1].data=Object.values(sBy); chComp.update(); }
   async function exportXLSX(){
-    // Exportar as TABELAS (Lançamentos, Resumo, Pivot) usando ExcelJS, com fallback para SheetJS
-    const dados = [...getTrans()].sort((a,b)=> new Date(a.data)-new Date(b.data));
-    if(!dados.length){ return Swal.fire({icon:'info',title:'Nenhum dado para exportar.'}); }
+    // Exportar TODO O ANO em uma única tabela consolidada
+    if(!salvarDirHandle){ 
+      return Swal.fire({icon:'info',title:'Selecione a pasta salvar primeiro',text:'Clique no botão "salvar" para escolher a pasta'}); 
+    }
 
     const dataH = new Date();
     const dataHoje = `${String(dataH.getDate()).padStart(2,'0')}_${String(dataH.getMonth()+1).padStart(2,'0')}_${dataH.getFullYear()}`;
@@ -843,102 +873,109 @@
       return `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`;
     };
 
+    // Carrega TODOS os 12 meses do ano atual
+    Swal.fire({title:'Carregando dados do ano...', allowOutsideClick:false, didOpen:()=>Swal.showLoading()});
+    const todosLancamentos = [];
+    for(let m=1; m<=12; m++){
+      const fname = `${String(m).padStart(2,'0')}-${currentYear}.xlsx`;
+      try{
+        const fh = await salvarDirHandle.getFileHandle(fname, {create:false});
+        const arr = await fileReadXlsx(fh);
+        todosLancamentos.push(...arr);
+      }catch{ /* mês sem dados */ }
+    }
+    Swal.close();
+
+    if(!todosLancamentos.length){ 
+      return Swal.fire({icon:'info',title:'Nenhum dado encontrado',text:`Não há lançamentos em ${currentYear}`}); 
+    }
+
+    // Ordena todos por data
+    const dados = todosLancamentos.sort((a,b)=> new Date(a.data)-new Date(b.data));
+
     // Recalcula saldo acumulado para export
     let saldo=0;
     const linhasLanc = dados.map(t=>{ saldo += (Number(t.entrada||0) - Number(t.saida||0)); return [fmtBRData(t.data), t.descricao, t.categoria, Number(t.entrada||0), Number(t.saida||0), saldo]; });
 
-    // Resumo por categoria
-    const byCat = CATEGORIAS.reduce((acc,c)=>{acc[c]={e:0,s:0};return acc;},{});
-    dados.forEach(t=>{ if(byCat[t.categoria]){ byCat[t.categoria].e += Number(t.entrada||0); byCat[t.categoria].s += Number(t.saida||0);} });
-    const linhasResumo = Object.keys(byCat).map(c=>{ const e=byCat[c].e, s=byCat[c].s; return [c, e, s, e-s]; });
-
-    // Pivot (igual ao resumo neste contexto)
-    const linhasPivot = linhasResumo.map(r=>[...r]);
-
-    const fileName = (function(){
-      if(scopeMode==='month') return `TABELAS-${String(currentMonth).padStart(2,'0')}-${currentYear}_${dataHoje}.xlsx`;
-      if(scopeMode==='year')  return `TABELAS-ANO-${currentYear}_${dataHoje}.xlsx`;
-      return `TABELAS-TODOS_${dataHoje}.xlsx`;
-    })();
+    const fileName = `ANO-COMPLETO-${currentYear}_${dataHoje}.xlsx`;
 
     const HEADER_STYLE = (cell)=>{
-      cell.font = { bold:true, color:{argb:'FFFFFFFF'} };
-      cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF4B81BD'} };
+      cell.font = { bold:true, color:{argb:'FFFFFFFF'}, size:12 };
+      cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF2C5F8D'} };
       cell.alignment = { vertical:'middle', horizontal:'center' };
-      cell.border = { top:{style:'thin'}, bottom:{style:'thin'}, left:{style:'thin'}, right:{style:'thin'} };
+      cell.border = { top:{style:'thin',color:{argb:'FF000000'}}, bottom:{style:'thin',color:{argb:'FF000000'}}, left:{style:'thin',color:{argb:'FF000000'}}, right:{style:'thin',color:{argb:'FF000000'}} };
+    };
+
+    const TOTAL_STYLE = (cell)=>{
+      cell.font = { bold:true, size:11 };
+      cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FFE7E6E6'} };
+      cell.border = { top:{style:'medium',color:{argb:'FF000000'}}, bottom:{style:'thin',color:{argb:'FF000000'}}, left:{style:'thin',color:{argb:'FF000000'}}, right:{style:'thin',color:{argb:'FF000000'}} };
+    };
+
+    const CELL_BORDER = {
+      top:{style:'thin',color:{argb:'FFD3D3D3'}},
+      bottom:{style:'thin',color:{argb:'FFD3D3D3'}},
+      left:{style:'thin',color:{argb:'FFD3D3D3'}},
+      right:{style:'thin',color:{argb:'FFD3D3D3'}}
     };
 
     try{
       if(typeof ExcelJS==='undefined' || !ExcelJS.Workbook) throw new Error('ExcelJS não carregada');
       const wb = new ExcelJS.Workbook();
       wb.creator = 'Controle Financeiro'; wb.created = new Date();
+      wb.company = 'Gestor Financeiro';
 
-      // Sheet: Lançamentos
-      const wsLanc = wb.addWorksheet('Lançamentos');
+      // UMA ÚNICA ABA com TODOS os lançamentos do ano
+      const wsLanc = wb.addWorksheet(`Ano ${currentYear} - Completo`);
       wsLanc.columns = [
-        {header:'Data', key:'data', width:12},
-        {header:'Descrição', key:'desc', width:36},
-        {header:'Categoria', key:'cat', width:20},
-        {header:'Entrada (+)', key:'ent', width:16},
-        {header:'Saída (-)', key:'sai', width:16},
-        {header:'Saldo', key:'saldo', width:16}
+        {header:'Data', key:'data', width:14},
+        {header:'Descrição', key:'desc', width:45},
+        {header:'Categoria', key:'cat', width:22},
+        {header:'Entrada (+)', key:'ent', width:18},
+        {header:'Saída (-)', key:'sai', width:18},
+        {header:'Saldo Acumulado', key:'saldo', width:20}
       ];
       linhasLanc.forEach(r=> wsLanc.addRow(r));
       wsLanc.getRow(1).eachCell(HEADER_STYLE);
-      wsLanc.getColumn(4).numFmt = "[$R$-416] #,##0.00";
-      wsLanc.getColumn(5).numFmt = "[$R$-416] #,##0.00";
-      wsLanc.getColumn(6).numFmt = "[$R$-416] #,##0.00";
-      wsLanc.getColumn(4).alignment = {horizontal:'right'};
-      wsLanc.getColumn(5).alignment = {horizontal:'right'};
-      wsLanc.getColumn(6).alignment = {horizontal:'right'};
-
-      // Sheet: Resumo por categoria
-      const wsResumo = wb.addWorksheet('Resumo');
-      wsResumo.columns = [
-        {header:'Categoria', key:'c', width:24},
-        {header:'Total Entradas', key:'e', width:18},
-        {header:'Total Saídas', key:'s', width:18},
-        {header:'Diferença', key:'d', width:18}
-      ];
-      linhasResumo.forEach(r=> wsResumo.addRow(r));
-      wsResumo.getRow(1).eachCell(HEADER_STYLE);
-      wsResumo.getColumn(2).numFmt = "[$R$-416] #,##0.00";
-      wsResumo.getColumn(3).numFmt = "[$R$-416] #,##0.00";
-      wsResumo.getColumn(4).numFmt = "[$R$-416] #,##0.00";
-      wsResumo.getColumn(2).alignment = {horizontal:'right'};
-      wsResumo.getColumn(3).alignment = {horizontal:'right'};
-      wsResumo.getColumn(4).alignment = {horizontal:'right'};
-
-      // Sheet: Pivot
-      const wsPivot = wb.addWorksheet('Pivot');
-      wsPivot.columns = [
-        {header:'Categoria', key:'c', width:24},
-        {header:'Total Entradas', key:'e', width:18},
-        {header:'Total Saídas', key:'s', width:18},
-        {header:'Diferença', key:'d', width:18}
-      ];
-      linhasPivot.forEach(r=> wsPivot.addRow(r));
-      wsPivot.getRow(1).eachCell(HEADER_STYLE);
-      wsPivot.getColumn(2).numFmt = "[$R$-416] #,##0.00";
-      wsPivot.getColumn(3).numFmt = "[$R$-416] #,##0.00";
-      wsPivot.getColumn(4).numFmt = "[$R$-416] #,##0.00";
-      wsPivot.getColumn(2).alignment = {horizontal:'right'};
-      wsPivot.getColumn(3).alignment = {horizontal:'right'};
-      wsPivot.getColumn(4).alignment = {horizontal:'right'};
+      wsLanc.getRow(1).height = 24;
+      // Formatação de valores
+      wsLanc.getColumn(4).numFmt = '"R$ "#,##0.00';
+      wsLanc.getColumn(5).numFmt = '"R$ "#,##0.00';
+      wsLanc.getColumn(6).numFmt = '"R$ "#,##0.00';
+      wsLanc.getColumn(4).alignment = {horizontal:'right', vertical:'middle'};
+      wsLanc.getColumn(5).alignment = {horizontal:'right', vertical:'middle'};
+      wsLanc.getColumn(6).alignment = {horizontal:'right', vertical:'middle'};
+      wsLanc.getColumn(1).alignment = {horizontal:'center', vertical:'middle'};
+      wsLanc.getColumn(2).alignment = {horizontal:'left', vertical:'middle'};
+      wsLanc.getColumn(3).alignment = {horizontal:'center', vertical:'middle'};
+      // Bordas em todas as células
+      wsLanc.eachRow((row, rowNumber) => { if(rowNumber > 1) row.eachCell(cell => cell.border = CELL_BORDER); });
+      // Linha de totais
+      const totE = linhasLanc.reduce((a,r)=>a+r[3],0);
+      const totS = linhasLanc.reduce((a,r)=>a+r[4],0);
+      const totSaldo = linhasLanc.length ? linhasLanc[linhasLanc.length-1][5] : 0;
+      const totalRow = wsLanc.addRow(['','','TOTAIS', totE, totS, totSaldo]);
+      totalRow.eachCell((cell, colNumber) => {
+        TOTAL_STYLE(cell);
+        if(colNumber >= 3) cell.alignment = {horizontal: colNumber===3?'center':'right', vertical:'middle'};
+      });
+      totalRow.height = 22;
 
       const buf = await wb.xlsx.writeBuffer();
       const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
       const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fileName; a.click(); URL.revokeObjectURL(a.href);
+      Swal.fire({icon:'success',title:`Ano ${currentYear} exportado!`,text:`${linhasLanc.length} lançamentos em uma única tabela`,timer:2000,showConfirmButton:false});
     }catch(err){
       console.warn('ExcelJS falhou, usando fallback simples SheetJS', err);
-      // Fallback: exporta apenas Lançamentos simples (como antes)
-      const aoa = [['Data','Descrição','Categoria','Entrada (+)','Saída (-)','Saldo'], ...linhasLanc];
+      // Fallback: exporta apenas Lançamentos simples
+      const aoa = [['Data','Descrição','Categoria','Entrada (+)','Saída (-)','Saldo Acumulado'], ...linhasLanc];
       const ws = XLSX.utils.aoa_to_sheet(aoa);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Lançamentos');
+      XLSX.utils.book_append_sheet(wb, ws, `Ano ${currentYear}`);
       const wbout = XLSX.write(wb,{bookType:'xlsx',type:'array'});
       const blob = new Blob([wbout], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
       const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fileName; a.click(); URL.revokeObjectURL(a.href);
+      Swal.fire({icon:'success',title:`Ano ${currentYear} exportado!`,timer:1500,showConfirmButton:false});
     }
   }
   function importXLSX(e){
@@ -955,6 +992,14 @@
     reader.readAsArrayBuffer(file);
     e.target.value='';
   }
+  // ====== CONTROLE DE VISIBILIDADE ANO/GERAL ======
+  function updateAnoVisibility(){
+    const showAno = $('#toggleAno').is(':checked');
+    const showTodos = $('#toggleTodos').is(':checked');
+    $('#secaoAno').toggle(showAno);
+    $('#secaoTodos').toggle(showTodos);
+  }
+  
   // ====== ANO / GERAL AGGREGATIONS ======
   async function carregarAno(ano){
     if(!salvarDirHandle){ return Swal.fire({icon:'info',title:'Selecione a pasta salvar'}); }
@@ -981,6 +1026,7 @@
       chAnoMeses.data.labels=labels; chAnoMeses.data.datasets[0].data=entradas; chAnoMeses.data.datasets[1].data=saidas; chAnoMeses.update();
     }
     $('#anoInfo').text(`Ano ${ano}: ${fmtMoney(totE)} entradas / ${fmtMoney(totS)} saídas`);
+    $('#secaoAno').show();
   }
   async function listarArquivosMes(){
     if(!salvarDirHandle) return [];
@@ -1003,25 +1049,176 @@
     setScope('all', allTrans);
     renderAll();
     const $tb=$('#tblTodosAnos tbody').empty(); let tE=0,tS=0; porAno.forEach(r=>{ tE+=r.entradas; tS+=r.saídas; const d=r.entradas-r.saídas; const cls=d>=0?'text-success':'text-danger'; $tb.append(`<tr><td><strong>${r.ano}</strong></td><td class='text-end text-success'>${fmtMoney(r.entradas)}</td><td class='text-end text-danger'>${fmtMoney(r.saídas)}</td><td class='text-end ${cls} fw-bold'>${fmtMoney(d)}</td></tr>`); }); $('#tblTodosAnos tfoot').html(`<tr><th class='text-end'>Totais:</th><th class='text-end text-success'>${fmtMoney(tE)}</th><th class='text-end text-danger'>${fmtMoney(tS)}</th><th class='text-end fw-bold'>${fmtMoney(tE-tS)}</th></tr>`); $('#anoInfo').text(`Todos os anos: ${fmtMoney(tE)} entradas / ${fmtMoney(tS)} saídas`);
+    $('#secaoTodos').show();
   }
   async function exportarAnoXLSX(ano){
     if(!salvarDirHandle){ return Swal.fire({icon:'info',title:'Selecione a pasta salvar'}); }
-    const wb=XLSX.utils.book_new();
-    for(let m=1;m<=12;m++){
-      const fname=`${String(m).padStart(2,'0')}-${ano}.xlsx`;
-      try{ const fh=await salvarDirHandle.getFileHandle(fname,{create:false}); const arr=await fileReadXlsx(fh); const aoa=[['id','data','descricao','categoria','entrada','saida'], ...arr.map(t=>[t.id,t.data,t.descricao,t.categoria,t.entrada,t.saida])]; const ws=XLSX.utils.aoa_to_sheet(aoa); XLSX.utils.book_append_sheet(wb, ws, `${String(m).padStart(2,'0')}`); }catch{ /* ignore missing month */ }
+    
+    try{
+      if(typeof ExcelJS==='undefined' || !ExcelJS.Workbook) throw new Error('ExcelJS não disponível');
+      
+      const wb = new ExcelJS.Workbook();
+      wb.creator = 'Controle Financeiro';
+      wb.created = new Date();
+      
+      const HEADER_STYLE = (cell)=>{
+        cell.font = { bold:true, color:{argb:'FFFFFFFF'}, size:11 };
+        cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF2C5F8D'} };
+        cell.alignment = { vertical:'middle', horizontal:'center' };
+        cell.border = { top:{style:'thin',color:{argb:'FF000000'}}, bottom:{style:'thin',color:{argb:'FF000000'}}, left:{style:'thin',color:{argb:'FF000000'}}, right:{style:'thin',color:{argb:'FF000000'}} };
+      };
+      
+      const CELL_BORDER = {
+        top:{style:'thin',color:{argb:'FFD3D3D3'}},
+        bottom:{style:'thin',color:{argb:'FFD3D3D3'}},
+        left:{style:'thin',color:{argb:'FFD3D3D3'}},
+        right:{style:'thin',color:{argb:'FFD3D3D3'}}
+      };
+      
+      const mesesNomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+      
+      for(let m=1;m<=12;m++){
+        const fname=`${String(m).padStart(2,'0')}-${ano}.xlsx`;
+        try{
+          const fh=await salvarDirHandle.getFileHandle(fname,{create:false});
+          const arr=await fileReadXlsx(fh);
+          if(arr.length === 0) continue;
+          
+          const ws = wb.addWorksheet(mesesNomes[m-1]);
+          ws.columns = [
+            {header:'Data', key:'data', width:14},
+            {header:'Descrição', key:'desc', width:40},
+            {header:'Categoria', key:'cat', width:20},
+            {header:'Entrada (+)', key:'ent', width:18},
+            {header:'Saída (-)', key:'sai', width:18}
+          ];
+          
+          // Formatar data brasileiro
+          arr.forEach(t=>{
+            const [y,m,d] = String(t.data).slice(0,10).split('-');
+            const dataFormatada = `${d}/${m}/${y}`;
+            ws.addRow([dataFormatada, t.descricao, t.categoria, Number(t.entrada||0), Number(t.saida||0)]);
+          });
+          
+          ws.getRow(1).eachCell(HEADER_STYLE);
+          ws.getRow(1).height = 22;
+          ws.getColumn(4).numFmt = '"R$ "#,##0.00';
+          ws.getColumn(5).numFmt = '"R$ "#,##0.00';
+          ws.getColumn(1).alignment = {horizontal:'center', vertical:'middle'};
+          ws.getColumn(2).alignment = {horizontal:'left', vertical:'middle'};
+          ws.getColumn(3).alignment = {horizontal:'center', vertical:'middle'};
+          ws.getColumn(4).alignment = {horizontal:'right', vertical:'middle'};
+          ws.getColumn(5).alignment = {horizontal:'right', vertical:'middle'};
+          ws.eachRow((row, rowNumber) => { if(rowNumber > 1) row.eachCell(cell => cell.border = CELL_BORDER); });
+        }catch{ /* ignore missing month */ }
+      }
+      
+      const buf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`ANO-${ano}.xlsx`; a.click(); URL.revokeObjectURL(a.href);
+      Swal.fire({icon:'success',title:`Ano ${ano} exportado!`,timer:1500,showConfirmButton:false});
+    }catch(err){
+      console.warn('ExcelJS falhou, usando SheetJS', err);
+      // Fallback SheetJS sem ID
+      const wb=XLSX.utils.book_new();
+      for(let m=1;m<=12;m++){
+        const fname=`${String(m).padStart(2,'0')}-${ano}.xlsx`;
+        try{ 
+          const fh=await salvarDirHandle.getFileHandle(fname,{create:false}); 
+          const arr=await fileReadXlsx(fh); 
+          const aoa=[['Data','Descrição','Categoria','Entrada (+)','Saída (-)'], ...arr.map(t=>[t.data,t.descricao,t.categoria,t.entrada,t.saida])]; 
+          const ws=XLSX.utils.aoa_to_sheet(aoa); 
+          XLSX.utils.book_append_sheet(wb, ws, `${String(m).padStart(2,'0')}`); 
+        }catch{ /* ignore */ }
+      }
+      const buf=XLSX.write(wb,{bookType:'xlsx',type:'array'}); 
+      const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}); 
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`ANO-${ano}.xlsx`; a.click(); URL.revokeObjectURL(a.href);
     }
-    const buf=XLSX.write(wb,{bookType:'xlsx',type:'array'}); const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`ANO-${ano}.xlsx`; a.click(); URL.revokeObjectURL(a.href);
   }
   async function exportarTodosAnosXLSX(){
     if(!salvarDirHandle){ return Swal.fire({icon:'info',title:'Selecione a pasta salvar'}); }
     const files=await listarArquivosMes();
     if(files.length===0) return Swal.fire({icon:'info',title:'Nenhum arquivo encontrado'});
-    const wb=XLSX.utils.book_new();
-    for(const f of files.sort()){
-      try{ const fh=await salvarDirHandle.getFileHandle(f,{create:false}); const arr=await fileReadXlsx(fh); const aoa=[['id','data','descricao','categoria','entrada','saida'], ...arr.map(t=>[t.id,t.data,t.descricao,t.categoria,t.entrada,t.saida])]; const ws=XLSX.utils.aoa_to_sheet(aoa); const sheetName=f.replace('.xlsx','').slice(0,31); XLSX.utils.book_append_sheet(wb, ws, sheetName); }catch{}
+    
+    try{
+      if(typeof ExcelJS==='undefined' || !ExcelJS.Workbook) throw new Error('ExcelJS não disponível');
+      
+      const wb = new ExcelJS.Workbook();
+      wb.creator = 'Controle Financeiro';
+      wb.created = new Date();
+      
+      const HEADER_STYLE = (cell)=>{
+        cell.font = { bold:true, color:{argb:'FFFFFFFF'}, size:11 };
+        cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF2C5F8D'} };
+        cell.alignment = { vertical:'middle', horizontal:'center' };
+        cell.border = { top:{style:'thin',color:{argb:'FF000000'}}, bottom:{style:'thin',color:{argb:'FF000000'}}, left:{style:'thin',color:{argb:'FF000000'}}, right:{style:'thin',color:{argb:'FF000000'}} };
+      };
+      
+      const CELL_BORDER = {
+        top:{style:'thin',color:{argb:'FFD3D3D3'}},
+        bottom:{style:'thin',color:{argb:'FFD3D3D3'}},
+        left:{style:'thin',color:{argb:'FFD3D3D3'}},
+        right:{style:'thin',color:{argb:'FFD3D3D3'}}
+      };
+      
+      for(const f of files.sort()){
+        try{
+          const fh=await salvarDirHandle.getFileHandle(f,{create:false});
+          const arr=await fileReadXlsx(fh);
+          if(arr.length === 0) continue;
+          
+          const sheetName=f.replace('.xlsx','').slice(0,31);
+          const ws = wb.addWorksheet(sheetName);
+          ws.columns = [
+            {header:'Data', key:'data', width:14},
+            {header:'Descrição', key:'desc', width:40},
+            {header:'Categoria', key:'cat', width:20},
+            {header:'Entrada (+)', key:'ent', width:18},
+            {header:'Saída (-)', key:'sai', width:18}
+          ];
+          
+          arr.forEach(t=>{
+            const [y,m,d] = String(t.data).slice(0,10).split('-');
+            const dataFormatada = `${d}/${m}/${y}`;
+            ws.addRow([dataFormatada, t.descricao, t.categoria, Number(t.entrada||0), Number(t.saida||0)]);
+          });
+          
+          ws.getRow(1).eachCell(HEADER_STYLE);
+          ws.getRow(1).height = 22;
+          ws.getColumn(4).numFmt = '"R$ "#,##0.00';
+          ws.getColumn(5).numFmt = '"R$ "#,##0.00';
+          ws.getColumn(1).alignment = {horizontal:'center', vertical:'middle'};
+          ws.getColumn(2).alignment = {horizontal:'left', vertical:'middle'};
+          ws.getColumn(3).alignment = {horizontal:'center', vertical:'middle'};
+          ws.getColumn(4).alignment = {horizontal:'right', vertical:'middle'};
+          ws.getColumn(5).alignment = {horizontal:'right', vertical:'middle'};
+          ws.eachRow((row, rowNumber) => { if(rowNumber > 1) row.eachCell(cell => cell.border = CELL_BORDER); });
+        }catch{}
+      }
+      
+      const buf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='TODOS-ANOS.xlsx'; a.click(); URL.revokeObjectURL(a.href);
+      Swal.fire({icon:'success',title:'Todos os anos exportados!',timer:1500,showConfirmButton:false});
+    }catch(err){
+      console.warn('ExcelJS falhou, usando SheetJS', err);
+      // Fallback SheetJS sem ID
+      const wb=XLSX.utils.book_new();
+      for(const f of files.sort()){
+        try{ 
+          const fh=await salvarDirHandle.getFileHandle(f,{create:false}); 
+          const arr=await fileReadXlsx(fh); 
+          const aoa=[['Data','Descrição','Categoria','Entrada (+)','Saída (-)'], ...arr.map(t=>[t.data,t.descricao,t.categoria,t.entrada,t.saida])]; 
+          const ws=XLSX.utils.aoa_to_sheet(aoa); 
+          const sheetName=f.replace('.xlsx','').slice(0,31); 
+          XLSX.utils.book_append_sheet(wb, ws, sheetName); 
+        }catch{}
+      }
+      const buf=XLSX.write(wb,{bookType:'xlsx',type:'array'}); 
+      const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}); 
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='TODOS-ANOS.xlsx'; a.click(); URL.revokeObjectURL(a.href);
     }
-    const buf=XLSX.write(wb,{bookType:'xlsx',type:'array'}); const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='TODOS-ANOS.xlsx'; a.click(); URL.revokeObjectURL(a.href);
   }
   </script>
 </body>
