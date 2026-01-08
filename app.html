@@ -437,6 +437,7 @@
           <span id="scopeStatus" class="align-self-center small badge rounded-pill text-bg-info">Mês</span>
           <button class="btn btn-secondary" id="btnAtualizar"><i class="bi bi-arrow-clockwise"></i> Atualizar</button>
           <button class="btn btn-outline-primary" id="btnExportar"><i class="bi bi-download"></i> Exportar XLSX</button>
+          <button class="btn btn-outline-success" id="btnExportarCategoria"><i class="bi bi-pie-chart"></i> Exportar por Categoria</button>
           <label class="btn btn-outline-dark mb-0" for="inputImportar"><i class="bi bi-upload"></i> Importar XLSX</label>
           <input type="file" id="inputImportar" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden />
         </div>
@@ -718,7 +719,7 @@
       $('#data').attr('min', `${anoAtual}-${mesAtual}-01`);
       $('#data').attr('max', `${anoAtual}-${mesAtual}-${String(ultimoDia).padStart(2,'0')}`);
     }
-  function bindEvents(){ $('#formLancamento').on('submit', onAdd); $('#monthSelect,#yearSelect').on('change', ()=>{currentMonth=parseInt($('#monthSelect').val()); currentYear=parseInt($('#yearSelect').val()); setScope('month'); setToday(); loadTransactions().then(()=>{ renderAll(); });}); $('#btnAtualizar').on('click', ()=>{ saveTransactions().then(()=>loadTransactions()).then(()=>{ renderAll(); Swal.fire({icon:'success',title:'Salvo/Atualizado!',timer:1000,showConfirmButton:false}); }); }); $('#entrada').on('input', ()=>{ if($('#entrada').val()) $('#saida').val(''); }); $('#saida').on('input', ()=>{ if($('#saida').val()) $('#entrada').val(''); }); $('#btnExportar').on('click', exportXLSX); $('#inputImportar').on('change', importXLSX); $('#btnFolder').on('click', selectSalvarFolder); $('#btnCarregarAno').on('click', ()=>{ carregarAno(currentYear); $('#toggleAno').prop('checked', true); updateAnoVisibility(); }); $('#btnExportarAno').on('click', ()=>{ exportarAnoXLSX(currentYear); }); $('#btnCarregarTodos').on('click', ()=>{ carregarTodosAnos(); $('#toggleTodos').prop('checked', true); updateAnoVisibility(); }); $('#btnExportarTodos').on('click', exportarTodosAnosXLSX); $('#btnVoltarMes').on('click', ()=>{ setScope('month'); loadTransactions().then(()=>{ renderAll(); Swal.fire({icon:'info',title:'Voltou para Mês',timer:800,showConfirmButton:false}); }); }); $('#toggleAno').on('change', updateAnoVisibility); $('#toggleTodos').on('change', updateAnoVisibility); }
+  function bindEvents(){ $('#formLancamento').on('submit', onAdd); $('#monthSelect,#yearSelect').on('change', ()=>{currentMonth=parseInt($('#monthSelect').val()); currentYear=parseInt($('#yearSelect').val()); setScope('month'); setToday(); loadTransactions().then(()=>{ renderAll(); });}); $('#btnAtualizar').on('click', ()=>{ saveTransactions().then(()=>loadTransactions()).then(()=>{ renderAll(); Swal.fire({icon:'success',title:'Salvo/Atualizado!',timer:1000,showConfirmButton:false}); }); }); $('#entrada').on('input', ()=>{ if($('#entrada').val()) $('#saida').val(''); }); $('#saida').on('input', ()=>{ if($('#saida').val()) $('#entrada').val(''); }); $('#btnExportar').on('click', exportXLSX); $('#btnExportarCategoria').on('click', exportarPorCategoria); $('#inputImportar').on('change', importXLSX); $('#btnFolder').on('click', selectSalvarFolder); $('#btnCarregarAno').on('click', ()=>{ carregarAno(currentYear); $('#toggleAno').prop('checked', true); updateAnoVisibility(); }); $('#btnExportarAno').on('click', ()=>{ exportarAnoXLSX(currentYear); }); $('#btnCarregarTodos').on('click', ()=>{ carregarTodosAnos(); $('#toggleTodos').prop('checked', true); updateAnoVisibility(); }); $('#btnExportarTodos').on('click', exportarTodosAnosXLSX); $('#btnVoltarMes').on('click', ()=>{ setScope('month'); loadTransactions().then(()=>{ renderAll(); Swal.fire({icon:'info',title:'Voltou para Mês',timer:800,showConfirmButton:false}); }); }); $('#toggleAno').on('change', updateAnoVisibility); $('#toggleTodos').on('change', updateAnoVisibility); }
 
     // ===== File System Access API helpers (Chrome/Edge/Opera) =====
     async function idbOpen(){
@@ -833,7 +834,132 @@
       const raw=localStorage.getItem(`${String(currentMonth).padStart(2,'0')}-${currentYear}.json`);
       if(raw){ try{ transactions = JSON.parse(raw).transacoes||[]; }catch{ transactions=[]; } } else { transactions=[]; }
     }
-  function onAdd(e){ e.preventDefault(); if(scopeMode!=='month'){ return Swal.fire({icon:'info',title:'Adição apenas na visão Mensal'}); } const entrada=parseFloat($('#entrada').val()||'0'); const saida=parseFloat($('#saida').val()||'0'); if(entrada<=0 && saida<=0){ return Swal.fire({icon:'warning',title:'Informe Entrada ou Saída'}); } const dataLanc = $('#data').val(); const [ano, mes] = dataLanc.split('-').map(n=>parseInt(n)); if(mes !== currentMonth || ano !== currentYear){ return Swal.fire({icon:'error',title:'Data inválida!',text:`A data deve estar em ${String(currentMonth).padStart(2,'0')}/${currentYear}`}); } const t={id:Date.now(),data:dataLanc,descricao:$('#descricao').val(),categoria:$('#categoria').val(),entrada,saida,saldo:0}; transactions.push(t); saveTransactions().then(()=>loadTransactions()).then(()=>{ $('#formLancamento')[0].reset(); setToday(); renderAll(); Swal.fire({icon:'success',title:'Lançamento adicionado!',timer:900,showConfirmButton:false}); }); }
+  async function onAdd(e){ 
+    e.preventDefault(); 
+    if(scopeMode!=='month'){ return Swal.fire({icon:'info',title:'Adição apenas na visão Mensal'}); } 
+    const entrada=parseFloat($('#entrada').val()||'0'); 
+    const saida=parseFloat($('#saida').val()||'0'); 
+    if(entrada<=0 && saida<=0){ return Swal.fire({icon:'warning',title:'Informe Entrada ou Saída'}); } 
+    const dataLanc = $('#data').val(); 
+    const [ano, mes] = dataLanc.split('-').map(n=>parseInt(n)); 
+    if(mes !== currentMonth || ano !== currentYear){ return Swal.fire({icon:'error',title:'Data inválida!',text:`A data deve estar em ${String(currentMonth).padStart(2,'0')}/${currentYear}`}); } 
+    
+    const descricao = $('#descricao').val();
+    const categoria = $('#categoria').val();
+    
+    // Se for Cartão de Crédito, perguntar sobre parcelamento
+    if(categoria === 'Cartão de Crédito' && saida > 0){
+      const { value: parcelas } = await Swal.fire({
+        title: 'Parcelamento do Cartão',
+        html: `
+          <div style="text-align: left; margin-bottom: 15px;">
+            <strong>Valor total:</strong> ${fmtMoney(saida)}
+          </div>
+          <label for="swal-parcelas" class="form-label">Quantas parcelas?</label>
+          <select id="swal-parcelas" class="form-select">
+            <option value="nesse-mes">Nesse mês (à vista)</option>
+            <option value="1">1x de ${fmtMoney(saida)}</option>
+            ${Array.from({length: 23}, (_, i) => {
+              const n = i + 2;
+              const valorParcela = saida / n;
+              return `<option value="${n}">${n}x de ${fmtMoney(valorParcela)}</option>`;
+            }).join('')}
+          </select>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Adicionar',
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+          return document.getElementById('swal-parcelas').value;
+        }
+      });
+      
+      if(!parcelas) return; // Cancelado
+      
+      if(parcelas === 'nesse-mes' || parcelas === '1'){
+        // Adicionar normalmente no mês atual
+        const t={id:Date.now(),data:dataLanc,descricao,categoria,entrada,saida,saldo:0};
+        transactions.push(t);
+        await saveTransactions();
+        await loadTransactions();
+        $('#formLancamento')[0].reset(); 
+        setToday(); 
+        renderAll(); 
+        Swal.fire({icon:'success',title:'Lançamento adicionado!',timer:900,showConfirmButton:false});
+      } else {
+        // Parcelamento em múltiplos meses
+        const numParcelas = parseInt(parcelas);
+        const valorParcela = saida / numParcelas;
+        
+        // Adicionar parcelas em cada mês
+        for(let i = 0; i < numParcelas; i++){
+          let mesParc = mes + i;
+          let anoParc = ano;
+          
+          // Ajustar ano se passar de dezembro
+          while(mesParc > 12){
+            mesParc -= 12;
+            anoParc += 1;
+          }
+          
+          // Definir o dia da parcela (primeiro dia do mês)
+          const dataParc = `${anoParc}-${String(mesParc).padStart(2,'0')}-01`;
+          
+          // Criar descrição com número da parcela
+          const descParc = `${descricao} (${i+1}/${numParcelas})`;
+          
+          // Criar a transação
+          const t = {
+            id: Date.now() + i,
+            data: dataParc,
+            descricao: descParc,
+            categoria,
+            entrada: 0,
+            saida: valorParcela,
+            saldo: 0
+          };
+          
+          // Salvar em cada arquivo de mês correspondente
+          const mesOriginal = currentMonth;
+          const anoOriginal = currentYear;
+          
+          currentMonth = mesParc;
+          currentYear = anoParc;
+          
+          await loadTransactions();
+          transactions.push(t);
+          await saveTransactions();
+          
+          // Restaurar mês/ano original
+          currentMonth = mesOriginal;
+          currentYear = anoOriginal;
+        }
+        
+        // Recarregar o mês atual
+        await loadTransactions();
+        $('#formLancamento')[0].reset(); 
+        setToday(); 
+        renderAll(); 
+        Swal.fire({
+          icon:'success',
+          title:'Parcelamento adicionado!',
+          text:`${numParcelas} parcelas de ${fmtMoney(valorParcela)} adicionadas`,
+          timer:2000,
+          showConfirmButton:false
+        });
+      }
+    } else {
+      // Categoria normal (não é Cartão de Crédito)
+      const t={id:Date.now(),data:dataLanc,descricao,categoria,entrada,saida,saldo:0}; 
+      transactions.push(t); 
+      await saveTransactions();
+      await loadTransactions();
+      $('#formLancamento')[0].reset(); 
+      setToday(); 
+      renderAll(); 
+      Swal.fire({icon:'success',title:'Lançamento adicionado!',timer:900,showConfirmButton:false});
+    }
+  }
   function onDelete(id){ if(scopeMode!=='month'){ return Swal.fire({icon:'info',title:'Exclusão apenas na visão Mensal'}); } Swal.fire({title:'Excluir lançamento?',icon:'warning',showCancelButton:true,confirmButtonText:'Excluir',confirmButtonColor:'#c00000'}).then(r=>{ if(r.isConfirmed){ transactions = transactions.filter(x=>x.id!==id); saveTransactions().then(()=>loadTransactions()).then(()=>renderAll()); } }); }
   function renderAll(){ renderLancamentos(); renderResumo(); renderCategorias(); renderPivot(); updateSummary(); updateCharts(); }
     function renderLancamentos(){
@@ -1257,6 +1383,323 @@
       const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='TODOS-ANOS.xlsx'; a.click(); URL.revokeObjectURL(a.href);
     }
   }
+
+  async function exportarPorCategoria(){
+    if(!salvarDirHandle){ return Swal.fire({icon:'info',title:'Selecione a pasta salvar'}); }
+    
+    // Mostrar diálogo para selecionar período
+    const currentMonthStr = String(currentMonth).padStart(2,'0');
+    const currentYearStr = String(currentYear);
+    
+    const { value: formValues } = await Swal.fire({
+      title: 'Exportar por Categoria',
+      width: '600px',
+      html: `
+        <div class="mb-3">
+          <label class="form-label fw-bold">Mês Inicial</label>
+          <input type="month" id="mesInicial" class="form-control" value="${currentYearStr}-${currentMonthStr}">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold">Mês Final</label>
+          <input type="month" id="mesFinal" class="form-control" value="${currentYearStr}-${currentMonthStr}">
+        </div>
+        <hr>
+        <div class="mb-3">
+          <label class="form-label fw-bold">Selecione as Categorias:</label>
+          <div style="max-height: 300px; overflow-y: auto; text-align: left; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="checkAll" checked>
+              <label class="form-check-label fw-bold" for="checkAll">
+                Selecionar Todas
+              </label>
+            </div>
+            <hr style="margin: 8px 0;">
+            ${CATEGORIAS.map((cat, idx) => `
+              <div class="form-check mb-2">
+                <input class="form-check-input cat-checkbox" type="checkbox" id="cat${idx}" value="${cat}" checked>
+                <label class="form-check-label" for="cat${idx}">
+                  ${cat}
+                </label>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <hr>
+        <div class="mb-3">
+          <label class="form-label fw-bold">Opção para Cartão de Crédito:</label>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="creditCardMode" id="ccAll" value="all" checked>
+            <label class="form-check-label" for="ccAll">
+              Mostrar todos os lançamentos
+            </label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="creditCardMode" id="ccParcelas" value="parcelas">
+            <label class="form-check-label" for="ccParcelas">
+              Mostrar apenas parcelas (compras parceladas)
+            </label>
+          </div>
+        </div>
+      `,
+      didOpen: () => {
+        // Lógica para "Selecionar Todas"
+        const checkAll = document.getElementById('checkAll');
+        const catCheckboxes = document.querySelectorAll('.cat-checkbox');
+        
+        checkAll.addEventListener('change', function() {
+          catCheckboxes.forEach(cb => cb.checked = this.checked);
+        });
+        
+        catCheckboxes.forEach(cb => {
+          cb.addEventListener('change', function() {
+            const allChecked = Array.from(catCheckboxes).every(c => c.checked);
+            checkAll.checked = allChecked;
+          });
+        });
+      },
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: 'Exportar',
+      cancelButtonText: 'Cancelar',
+      preConfirm: () => {
+        const mesInicial = document.getElementById('mesInicial').value;
+        const mesFinal = document.getElementById('mesFinal').value;
+        if (!mesInicial || !mesFinal) {
+          Swal.showValidationMessage('Por favor, preencha ambos os períodos');
+          return false;
+        }
+        if (mesInicial > mesFinal) {
+          Swal.showValidationMessage('O mês inicial deve ser anterior ou igual ao mês final');
+          return false;
+        }
+        
+        // Obter categorias selecionadas
+        const selectedCategories = Array.from(document.querySelectorAll('.cat-checkbox:checked')).map(cb => cb.value);
+        if (selectedCategories.length === 0) {
+          Swal.showValidationMessage('Selecione pelo menos uma categoria');
+          return false;
+        }
+        
+        const creditCardMode = document.querySelector('input[name="creditCardMode"]:checked').value;
+        
+        return { mesInicial, mesFinal, selectedCategories, creditCardMode };
+      }
+    });
+
+    if (!formValues) return;
+
+    const [anoInicial, mesInicial] = formValues.mesInicial.split('-').map(Number);
+    const [anoFinal, mesFinal] = formValues.mesFinal.split('-').map(Number);
+    const selectedCategories = formValues.selectedCategories;
+    const creditCardMode = formValues.creditCardMode;
+
+    // Carregar todos os lançamentos do período
+    let allTransactions = [];
+    let currentDate = new Date(anoInicial, mesInicial - 1, 1);
+    const endDate = new Date(anoFinal, mesFinal - 1, 1);
+
+    while (currentDate <= endDate) {
+      const ano = currentDate.getFullYear();
+      const mes = currentDate.getMonth() + 1;
+      const fname = `${String(mes).padStart(2,'0')}-${ano}.xlsx`;
+      
+      try {
+        const fh = await salvarDirHandle.getFileHandle(fname, {create: false});
+        const arr = await fileReadXlsx(fh);
+        allTransactions = allTransactions.concat(arr);
+      } catch(e) {
+        // Mês não existe, pular
+      }
+      
+      currentDate.setMonth(currentDate.getMonth() + 1);
+    }
+
+    if (allTransactions.length === 0) {
+      return Swal.fire({icon:'info',title:'Nenhum lançamento encontrado no período'});
+    }
+
+    // Agrupar por categoria (apenas categorias selecionadas)
+    const porCategoria = {};
+    selectedCategories.forEach(cat => {
+      porCategoria[cat] = { entradas: 0, saidas: 0, transacoes: [] };
+    });
+
+    allTransactions.forEach(t => {
+      // Verificar se a categoria está selecionada
+      if (!selectedCategories.includes(t.categoria)) return;
+      
+      // Se for Cartão de Crédito e modo parcelas, filtrar apenas parcelas
+      if (t.categoria === 'Cartão de Crédito' && creditCardMode === 'parcelas') {
+        // Verificar se é uma parcela (descrição contém "(X/Y)" no formato das parcelas)
+        if (!t.descricao.match(/\(\d+\/\d+\)/)) {
+          return; // Pular se não for parcela
+        }
+      }
+      
+      porCategoria[t.categoria].entradas += t.entrada || 0;
+      porCategoria[t.categoria].saidas += t.saida || 0;
+      porCategoria[t.categoria].transacoes.push(t);
+    });
+
+    // Verificar se há alguma transação nas categorias selecionadas
+    const temDados = Object.values(porCategoria).some(d => d.transacoes.length > 0);
+    if (!temDados) {
+      return Swal.fire({icon:'info',title:'Nenhum lançamento encontrado nas categorias selecionadas'});
+    }
+
+    // Exportar usando ExcelJS
+    try{
+      if(typeof ExcelJS==='undefined' || !ExcelJS.Workbook) throw new Error('ExcelJS não disponível');
+      
+      const wb = new ExcelJS.Workbook();
+      wb.creator = 'Controle Financeiro';
+      wb.created = new Date();
+      
+      const HEADER_STYLE = (cell)=>{
+        cell.font = { bold:true, color:{argb:'FFFFFFFF'}, size:11 };
+        cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF2C5F8D'} };
+        cell.alignment = { vertical:'middle', horizontal:'center' };
+        cell.border = { top:{style:'thin',color:{argb:'FF000000'}}, bottom:{style:'thin',color:{argb:'FF000000'}}, left:{style:'thin',color:{argb:'FF000000'}}, right:{style:'thin',color:{argb:'FF000000'}} };
+      };
+      
+      const CELL_BORDER = {
+        top:{style:'thin',color:{argb:'FFD3D3D3'}},
+        bottom:{style:'thin',color:{argb:'FFD3D3D3'}},
+        left:{style:'thin',color:{argb:'FFD3D3D3'}},
+        right:{style:'thin',color:{argb:'FFD3D3D3'}}
+      };
+
+      // Criar aba de resumo
+      const wsResumo = wb.addWorksheet('Resumo por Categoria');
+      wsResumo.columns = [
+        {header:'Categoria', key:'cat', width:25},
+        {header:'Total Entradas', key:'ent', width:18},
+        {header:'Total Saídas', key:'sai', width:18},
+        {header:'Diferença', key:'dif', width:18},
+        {header:'Qtd. Lançamentos', key:'qtd', width:18}
+      ];
+
+      wsResumo.getRow(1).eachCell(cell => HEADER_STYLE(cell));
+      wsResumo.getRow(1).height = 25;
+
+      let totalEntradas = 0;
+      let totalSaidas = 0;
+      let totalLancamentos = 0;
+
+      Object.keys(porCategoria).sort().forEach(cat => {
+        const dados = porCategoria[cat];
+        if (dados.transacoes.length === 0) return; // Pular categorias vazias
+        
+        wsResumo.addRow({
+          cat: cat,
+          ent: dados.entradas,
+          sai: dados.saidas,
+          dif: dados.entradas - dados.saidas,
+          qtd: dados.transacoes.length
+        });
+        
+        totalEntradas += dados.entradas;
+        totalSaidas += dados.saidas;
+        totalLancamentos += dados.transacoes.length;
+      });
+
+      // Linha de totais
+      const totalRow = wsResumo.addRow({
+        cat: 'TOTAL',
+        ent: totalEntradas,
+        sai: totalSaidas,
+        dif: totalEntradas - totalSaidas,
+        qtd: totalLancamentos
+      });
+      totalRow.font = { bold: true };
+      totalRow.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FFE0E0E0'} };
+
+      // Formatar valores
+      wsResumo.getColumn(2).numFmt = 'R$ #,##0.00';
+      wsResumo.getColumn(3).numFmt = 'R$ #,##0.00';
+      wsResumo.getColumn(4).numFmt = 'R$ #,##0.00';
+      
+      wsResumo.getColumn(1).alignment = {horizontal:'left', vertical:'middle'};
+      wsResumo.getColumn(2).alignment = {horizontal:'right', vertical:'middle'};
+      wsResumo.getColumn(3).alignment = {horizontal:'right', vertical:'middle'};
+      wsResumo.getColumn(4).alignment = {horizontal:'right', vertical:'middle'};
+      wsResumo.getColumn(5).alignment = {horizontal:'center', vertical:'middle'};
+      
+      wsResumo.eachRow((row, rowNumber) => { 
+        if(rowNumber > 1) row.eachCell(cell => cell.border = CELL_BORDER); 
+      });
+
+      // Criar aba para cada categoria com lançamentos
+      Object.keys(porCategoria).sort().forEach(cat => {
+        const dados = porCategoria[cat];
+        if (dados.transacoes.length === 0) return; // Pular categorias vazias
+        
+        const sheetName = cat.slice(0, 31); // Excel limita a 31 caracteres
+        const ws = wb.addWorksheet(sheetName);
+        
+        ws.columns = [
+          {header:'Data', key:'data', width:14},
+          {header:'Descrição', key:'desc', width:40},
+          {header:'Entrada (+)', key:'ent', width:18},
+          {header:'Saída (-)', key:'sai', width:18}
+        ];
+
+        ws.getRow(1).eachCell(cell => HEADER_STYLE(cell));
+        ws.getRow(1).height = 25;
+
+        // Ordenar por data
+        dados.transacoes.sort((a,b) => a.data.localeCompare(b.data));
+
+        dados.transacoes.forEach(t => {
+          const [ano,mes,dia] = t.data.split('-');
+          ws.addRow({
+            data: `${dia}/${mes}/${ano}`,
+            desc: t.descricao,
+            ent: t.entrada || 0,
+            sai: t.saida || 0
+          });
+        });
+
+        // Linha de totais
+        const catTotalRow = ws.addRow({
+          data: '',
+          desc: 'TOTAL',
+          ent: dados.entradas,
+          sai: dados.saidas
+        });
+        catTotalRow.font = { bold: true };
+        catTotalRow.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FFE0E0E0'} };
+
+        ws.getColumn(3).numFmt = 'R$ #,##0.00';
+        ws.getColumn(4).numFmt = 'R$ #,##0.00';
+        
+        ws.getColumn(1).alignment = {horizontal:'center', vertical:'middle'};
+        ws.getColumn(2).alignment = {horizontal:'left', vertical:'middle'};
+        ws.getColumn(3).alignment = {horizontal:'right', vertical:'middle'};
+        ws.getColumn(4).alignment = {horizontal:'right', vertical:'middle'};
+        
+        ws.eachRow((row, rowNumber) => { 
+          if(rowNumber > 1) row.eachCell(cell => cell.border = CELL_BORDER); 
+        });
+      });
+
+      const buf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      const sufixoParcelas = (creditCardMode === 'parcelas' && selectedCategories.includes('Cartão de Crédito')) ? '_PARCELAS' : '';
+      const fileName = `CATEGORIAS_${String(mesInicial).padStart(2,'0')}-${anoInicial}_a_${String(mesFinal).padStart(2,'0')}-${anoFinal}${sufixoParcelas}.xlsx`;
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fileName; a.click(); URL.revokeObjectURL(a.href);
+      
+      let mensagem = 'Exportado por categoria!';
+      if (creditCardMode === 'parcelas' && selectedCategories.includes('Cartão de Crédito')) {
+        mensagem = 'Exportado (apenas parcelas do cartão)!';
+      }
+      Swal.fire({icon:'success',title:mensagem,timer:1500,showConfirmButton:false});
+    }catch(err){
+      console.error('Erro ao exportar por categoria', err);
+      Swal.fire({icon:'error',title:'Erro ao exportar',text:err.message});
+    }
+  }
+
   </script>
 </body>
 </html>

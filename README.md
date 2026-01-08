@@ -54,7 +54,8 @@ O **Gestor Financeiro Pessoal** é uma aplicação web standalone (sem backend) 
 | 📅 **Gestão Mensal** | Organize por mês/ano com navegação intuitiva |
 | 📈 **Saldo Acumulado** | Acompanhe seu saldo em tempo real |
 | 🏷️ **Categorização** | 11 categorias pré-definidas para organização |
-| 🔍 **Busca e Filtro** | DataTables com busca e ordenação avançada |
+| � **Parcelamento** | Sistema automático de parcelamento para cartão de crédito (até 24x) |
+| �🔍 **Busca e Filtro** | DataTables com busca e ordenação avançada |
 | 🗑️ **Exclusão Segura** | Confirmação antes de excluir lançamentos |
 
 ### 📈 Visualizações e Relatórios
@@ -86,6 +87,7 @@ Pasta "salvar" (escolhida pelo usuário)
 - ✅ **Exportar Ano Completo** - Todos os 12 meses em uma única tabela
 - ✅ **Exportar Ano Separado** - Uma aba por mês
 - ✅ **Exportar Histórico** - Todos os anos consolidados
+- ✅ **Exportar por Categoria** - Relatórios personalizados com seleção de período e categorias
 - ✅ **Formatação Excel** - Cores, bordas, totais e formato R$
 
 ---
@@ -215,6 +217,40 @@ Saída: 1200.00
 ```
 
 > 🔒 **Importante**: A data é automaticamente travada no mês/ano selecionado!
+
+#### Parcelamento de Cartão de Crédito
+
+Quando você seleciona a categoria **"Cartão de Crédito"** e adiciona uma saída, o sistema pergunta:
+
+```
+┌─────────────────────────────────────┐
+│ Parcelamento do Cartão              │
+├─────────────────────────────────────┤
+│ Quantas parcelas?                   │
+│                                     │
+│ ○ Neste mês (pagamento único)       │
+│ ○ 1x de R$ 1.200,00                 │
+│ ○ 2x de R$ 600,00                   │
+│ ○ 3x de R$ 400,00                   │
+│ ...                                 │
+│ ○ 12x de R$ 100,00                  │
+│ ...                                 │
+│ ○ 24x de R$ 50,00                   │
+│                                     │
+│     [Cancelar]  [Confirmar]         │
+└─────────────────────────────────────┘
+```
+
+**Opções:**
+- **"Neste mês"**: Adiciona o valor integral no mês atual
+- **"1x"**: Mesmo que "Neste mês"
+- **"2x a 24x"**: Divide o valor e adiciona automaticamente nos próximos meses
+
+**Exemplo:** Compra de R$ 1.200,00 parcelada em 12x
+- Janeiro/2026: R$ 100,00 - Descrição (1/12)
+- Fevereiro/2026: R$ 100,00 - Descrição (2/12)
+- Março/2026: R$ 100,00 - Descrição (3/12)
+- ... até Dezembro/2026
 
 ### 4️⃣ Visualizar Dados
 
@@ -416,6 +452,78 @@ Estrutura das colunas no Excel:
 - Migração de dados
 - Análise histórica
 
+### 4. Exportar por Categoria
+
+**Botão:** "📊 Exportar por Categoria"
+
+**Interface de Seleção:**
+```
+┌─────────────────────────────────────────┐
+│ Exportar por Categoria                  │
+├─────────────────────────────────────────┤
+│ Mês Inicial: [01/2026]                  │
+│ Mês Final:   [12/2026]                  │
+│─────────────────────────────────────────│
+│ Selecione as Categorias:                │
+│ ☑ Selecionar Todas                      │
+│ ────────────────────────────────────────│
+│ ☑ Salário                               │
+│ ☑ Moradia                               │
+│ ☑ Alimentação                           │
+│ ☑ Cartão de Crédito                     │
+│ ... (outras categorias)                 │
+│─────────────────────────────────────────│
+│ Opção para Cartão de Crédito:          │
+│ ⦿ Mostrar todos os lançamentos          │
+│ ○ Mostrar apenas parcelas               │
+│─────────────────────────────────────────│
+│     [Cancelar]  [Exportar]              │
+└─────────────────────────────────────────┘
+```
+
+**Arquivo gerado:** `CATEGORIAS_01-2026_a_12-2026.xlsx` (ou `_PARCELAS.xlsx` se filtrou parcelas)
+
+**Conteúdo:**
+
+**Aba 1: "Resumo por Categoria"**
+```
+Categoria          | Total Entradas | Total Saídas | Diferença | Qtd. Lançamentos
+-------------------|----------------|--------------|-----------|------------------
+Salário           | R$ 60.000,00   | R$ 0,00      | +R$ 60k   | 12
+Moradia           | R$ 0,00        | R$ 14.400,00 | -R$ 14k   | 12
+Alimentação       | R$ 0,00        | R$ 9.600,00  | -R$ 9.6k  | 48
+TOTAL             | R$ 60.000,00   | R$ 24.000,00 | +R$ 36k   | 72
+```
+
+**Abas 2+: Uma aba por categoria selecionada**
+```
+Data       | Descrição              | Entrada (+) | Saída (-)
+-----------|------------------------|-------------|------------
+05/01/2026 | Salário Janeiro        | R$ 5.000,00 | R$ 0,00
+05/02/2026 | Salário Fevereiro      | R$ 5.000,00 | R$ 0,00
+TOTAL      |                        | R$ 10.000,00| R$ 0,00
+```
+
+**Recursos:**
+- ✅ Escolha livre de período (ex: Agosto/2025 a Março/2026)
+- ✅ Seleção múltipla de categorias
+- ✅ Checkbox "Selecionar Todas"
+- ✅ Meses sem dados são ignorados automaticamente
+- ✅ Filtro especial para parcelas do cartão de crédito
+- ✅ Só mostra categorias com lançamentos
+
+**Modo "Apenas Parcelas" para Cartão de Crédito:**
+- Filtra apenas lançamentos com formato "(X/Y)" na descrição
+- Exemplo: "Compra na Loja (1/12)", "Parcela Notebook (5/10)"
+- Ignora pagamentos únicos sem parcelamento
+- Útil para análise de compras parceladas
+
+**Ideal para:**
+- Análise de categorias específicas em períodos personalizados
+- Comparar gastos entre categorias
+- Relatórios detalhados de parcelas
+- Auditoria de despesas por tipo
+
 ### Formatação Excel
 
 Todas as exportações incluem:
@@ -530,6 +638,26 @@ Não há limite fixo! Mas para melhor performance:
 ⚠️ **Parcialmente**. O layout é responsivo, mas:
 - File System API não funciona no mobile
 - Use apenas em tablets/desktop para melhor experiência
+
+### 11. Como funciona o parcelamento do cartão?
+
+✅ Ao selecionar **"Cartão de Crédito"** como categoria:
+1. O sistema pergunta quantas parcelas (1x a 24x)
+2. Escolha "Neste mês" para pagamento único
+3. Escolha 2x a 24x para dividir automaticamente
+4. O sistema cria um lançamento em cada mês com formato "Descrição (X/Y)"
+5. Cada parcela tem o valor dividido igualmente
+
+**Exemplo:** R$ 2.400,00 em 12x = R$ 200,00/mês por 12 meses
+
+### 12. Como exportar apenas algumas categorias?
+
+✅ Use o botão **"Exportar por Categoria"**:
+1. Selecione o período desejado
+2. Desmarque "Selecionar Todas"
+3. Marque apenas as categorias que quer
+4. Para Cartão de Crédito, escolha se quer ver tudo ou só parcelas
+5. Exporte → arquivo terá apenas as categorias marcadas
 
 ---
 
